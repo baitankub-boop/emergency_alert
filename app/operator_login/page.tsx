@@ -1,14 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
-import { setOperatorSession } from "@/lib/operatorSession";
+import { setOperatorSession, isOperatorSessionValid } from "@/lib/operatorSession";
 
 export default function OperatorLogin() {
   const router = useRouter();
   const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    if (isOperatorSessionValid()) {
+      router.replace("/operator_page");
+    }
+  }, [router]);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");

@@ -1,14 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
-import { setAdminSession } from "@/lib/adminSession";
+import { setAdminSession, isAdminSessionValid } from "@/lib/adminSession";
 
 export default function LoginAdmin() {
   const router = useRouter();
   const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    if (isAdminSessionValid()) {
+      router.replace("/admin_page");
+    }
+  }, [router]);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
