@@ -199,7 +199,7 @@ export default function AddOperatorPage() {
                   {loading ? (
                     <>
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin-smooth" />
-                      Adding...
+                      Sending OTP...
                     </>
                   ) : "Add Operator"}
                 </button>
