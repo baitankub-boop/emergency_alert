@@ -229,24 +229,39 @@ flowchart TD
 
 ---
 
-## 9. Flowchart — เพิ่ม Admin / Operator (OTP)
+## 9. Flowchart — เพิ่ม Admin / Operator
 
 ```mermaid
 flowchart TD
-    A([Start]) --> B["Admin กรอกข้อมูล\nชื่อ/นามสกุล/email/password\nที่ /add_admin หรือ /add_operator"]
+    A([Start]) --> REG["Admin เปิดหน้า\n/add_admin หรือ /add_operator"]
+    REG --> CHOICE{"วิธีลงทะเบียน"}
+
+    CHOICE -- "Register with Google" --> GG["กด Register with Google\nsetSessionStorage google_register_type"]
+    GG --> GOAUTH["supabase.auth.signInWithOAuth\nprovider: google\nredirectTo: .../auth/callback"]
+    GOAUTH --> GCONSENT["Google consent screen"]
+    GCONSENT --> GCB["Redirect กลับ /add_admin\nหรือ /add_operator"]
+    GCB --> GPREFILL["getSession() → อ่าน user_metadata\nPre-fill ชื่อ/email\nEmail read-only\nsignOut() จาก Supabase"]
+    GPREFILL --> GPWD["Admin กรอก password\nกด Submit"]
+    GPWD --> GAPI["POST /api/create_staff_google\n{type, first_name, last_name, email, password}"]
+    GAPI --> GHASH["Hash password ด้วย scrypt"]
+    GHASH --> GINSERT["INSERT ลง admin_data\nหรือ operator_data"]
+    GINSERT --> GDONE["Redirect → /admin_page"]
+
+    CHOICE -- "กรอกด้วยตนเอง" --> B["กรอก ชื่อ/นามสกุล/email/password"]
     B --> C["POST /api/send_registration_otp\ntype = admin หรือ operator"]
-    C --> D["Hash password ด้วย scrypt\n(salt:hash)"]
-    D --> E["สร้าง OTP 6 หลัก\nเก็บ hash + pending_data\nใน registration_otps\nexpires = 10 นาที"]
-    E --> F["ส่ง Email\nหัวเรื่อง: 40 building alarm OTP\nผ่าน Gmail SMTP"]
-    F --> G["Redirect → /verify_registration_otp\n?email=...&type=admin/operator"]
-    G --> H["กรอก OTP 6 หลัก"]
+    C --> D["Hash password ด้วย scrypt\nสร้าง OTP 6 หลัก\nเก็บ hash + pending_data\nexpires = 10 นาที"]
+    D --> E["ส่ง Email OTP\nผ่าน Gmail SMTP"]
+    E --> F["Redirect → /verify_registration_otp\n?email=...&type=admin/operator"]
+    F --> H["กรอก OTP 6 หลัก"]
     H --> I{"OTP ถูกต้อง?"}
     I -- ไม่ --> J["Error / Resend"]
     J --> H
-    I -- ใช่ --> K["INSERT ลง admin_data\nหรือ operator_data\n(ใช้ hashed password)"]
+    I -- ใช่ --> K["INSERT ลง admin_data\nหรือ operator_data"]
     K --> L["ลบ OTP record"]
     L --> M["Redirect → /admin_page"]
-    M --> Z([End])
+
+    GDONE --> Z([End])
+    M --> Z
 ```
 
 ---
@@ -408,6 +423,7 @@ sequenceDiagram
 | POST | `/api/verify_admin` | `{email, password}` | Admin login (scrypt verify) |
 | POST | `/api/verify_operator` | `{email, password}` | Operator login (scrypt verify) |
 | POST | `/api/notify_status_change` | `{table, id, old_status, new_status}` | ส่ง email เมื่อ status เปลี่ยน |
+| POST | `/api/create_staff_google` | `{type, first_name, last_name, email, password}` | สร้าง Admin/Operator หลัง Google OAuth (ไม่ต้อง OTP) |
 
 ---
 
@@ -446,8 +462,8 @@ emergency_alert/
 │   │                                   #   · Delete (มี confirmation)
 │   │                                   #   · Report: Pie Chart ชั้น + Bar Chart ประเภท
 │   │                                   #   · Export Excel (3 sheets) + PDF
-│   ├── add_admin/page.tsx              # เพิ่ม Admin → OTP
-│   ├── add_operator/page.tsx           # เพิ่ม Operator → OTP
+│   ├── add_admin/page.tsx              # เพิ่ม Admin → Google OAuth (ไม่ OTP) หรือ Email → OTP
+│   ├── add_operator/page.tsx           # เพิ่ม Operator → Google OAuth (ไม่ OTP) หรือ Email → OTP
 │   ├── operator_login/page.tsx         # Operator login
 │   ├── operator_page/page.tsx          # Operator dashboard:
 │   │                                   #   · ตาราง Emergency + Breakdown
@@ -462,6 +478,7 @@ emergency_alert/
 │       ├── notify_status_change/route.ts    # Email notification เมื่อ status เปลี่ยน
 │       ├── verify_admin/route.ts       # Admin login (scrypt compare)
 │       ├── verify_operator/route.ts    # Operator login (scrypt compare)
+│       ├── create_staff_google/route.ts # สร้าง Admin/Operator ผ่าน Google OAuth (ไม่ OTP)
 │       ├── add_admin/route.ts          # (legacy)
 │       └── add_operator/route.ts       # (legacy)
 │
@@ -515,6 +532,7 @@ emergency_alert/
 | email | text | email ผู้แจ้ง |
 | status | text | Waiting / In Process / Success / Failed |
 | photo_url | text (nullable) | URL จาก Supabase Storage |
+| finish_at | timestamptz (nullable) | บันทึกเมื่อ status เปลี่ยนเป็น Success |
 
 ### `breakdown_data`
 | Column | Type | หมายเหตุ |
@@ -527,6 +545,7 @@ emergency_alert/
 | email | text | |
 | status | text | Waiting / In Process / Success / Failed |
 | photo_url | text (nullable) | |
+| finish_at | timestamptz (nullable) | บันทึกเมื่อ status เปลี่ยนเป็น Success |
 
 ### `admin_data` / `operator_data`
 | Column | Type | หมายเหตุ |
@@ -638,7 +657,9 @@ https://emergency-alert-gilt.vercel.app/auth/callback
 -- เพิ่ม columns
 ALTER TABLE emergency_data ADD COLUMN IF NOT EXISTS emergency_type TEXT;
 ALTER TABLE emergency_data ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE emergency_data ADD COLUMN IF NOT EXISTS finish_at TIMESTAMPTZ;
 ALTER TABLE breakdown_data ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE breakdown_data ADD COLUMN IF NOT EXISTS finish_at TIMESTAMPTZ;
 
 -- OTP table
 CREATE TABLE registration_otps (
@@ -682,7 +703,7 @@ FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 - ✅ Report: Pie Chart ชั้นบ่อย + Bar Chart ประเภทบ่อย (Emergency + Breakdown แยกกัน)
 - ✅ Export Excel (Emergency sheet + Breakdown sheet + Summary sheet)
 - ✅ Export PDF (Summary + ตารางข้อมูล)
-- ✅ เพิ่ม Admin/Operator ใหม่ → OTP via Gmail
+- ✅ เพิ่ม Admin/Operator ใหม่ → Google OAuth (ไม่ต้อง OTP) หรือ Email → OTP via Gmail
 - ✅ รับ email แจ้งเตือนทุก event
 
 ### Operator

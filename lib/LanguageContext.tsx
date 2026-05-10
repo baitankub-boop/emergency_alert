@@ -125,6 +125,7 @@ const translations: Record<Language, Record<string, string>> = {
     updating: "Updating...",
     th_action: "Action",
     th_photo: "Photo",
+    th_finished_at: "Finished At",
 
     // Stats
     stat_total_emergency: "Total Emergency",
@@ -325,6 +326,7 @@ const translations: Record<Language, Record<string, string>> = {
     updating: "กำลังอัปเดต...",
     th_action: "ดำเนินการ",
     th_photo: "รูปภาพ",
+    th_finished_at: "เวลาเสร็จสิ้น",
 
     // Stats
     stat_total_emergency: "ฉุกเฉินทั้งหมด",

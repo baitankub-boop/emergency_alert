@@ -22,6 +22,7 @@ interface EmergencyRow {
   email: string;
   status: string;
   photo_url: string | null;
+  finish_at: string | null;
 }
 
 interface BreakdownRow {
@@ -33,6 +34,7 @@ interface BreakdownRow {
   email: string;
   status: string;
   photo_url: string | null;
+  finish_at: string | null;
 }
 
 function formatTimestamp(iso: string): string {
@@ -143,7 +145,7 @@ export default function AdminPage() {
   const fetchEmergency = useCallback(async () => {
     const { data, error } = await supabase
       .from("emergency_data")
-      .select("id, created_at, emergency_type, floor, description, email, status, photo_url")
+      .select("id, created_at, emergency_type, floor, description, email, status, photo_url, finish_at")
       .order("created_at", { ascending: false });
     if (!error && data) setEmergencyRows(data as EmergencyRow[]);
   }, []);
@@ -151,7 +153,7 @@ export default function AdminPage() {
   const fetchBreakdown = useCallback(async () => {
     const { data, error } = await supabase
       .from("breakdown_data")
-      .select("id, created_at, breakdown_type, floor, description, email, status, photo_url")
+      .select("id, created_at, breakdown_type, floor, description, email, status, photo_url, finish_at")
       .order("created_at", { ascending: false });
     if (!error && data) setBreakdownRows(data as BreakdownRow[]);
   }, []);
@@ -738,6 +740,7 @@ export default function AdminPage() {
                     <th className={thCls}>{t("th_email")}</th>
                     <th className={thCls}>{t("th_photo")}</th>
                     <th className={thCls}>{t("th_status")}</th>
+                    <th className={thCls}>{t("th_finished_at")}</th>
                     <th className={thCls}>{t("th_action")}</th>
                     <th className={thCls}></th>
                   </tr>
@@ -745,7 +748,7 @@ export default function AdminPage() {
                 <tbody className="divide-y divide-slate-100">
                   {loading && (
                     <tr>
-                      <td colSpan={10} className="py-16 text-center">
+                      <td colSpan={11} className="py-16 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <div className="w-7 h-7 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin-smooth" />
                           <span className="text-sm text-slate-400">{t("loading")}</span>
@@ -755,7 +758,7 @@ export default function AdminPage() {
                   )}
                   {!loading && emergencyRows.length === 0 && (
                     <tr>
-                      <td colSpan={10} className="py-16 text-center text-sm text-slate-400">{t("no_records")}</td>
+                      <td colSpan={11} className="py-16 text-center text-sm text-slate-400">{t("no_records")}</td>
                     </tr>
                   )}
                   {!loading && pagedEmergency.map((r, idx) => (
@@ -786,6 +789,9 @@ export default function AdminPage() {
                         )}
                       </td>
                       <td className={tdCls}><StatusBadge status={r.status} /></td>
+                      <td className={`${tdCls} font-mono text-xs text-slate-500 whitespace-nowrap`}>
+                        {r.finish_at ? formatTimestamp(r.finish_at) : <span className="text-slate-300">—</span>}
+                      </td>
                       <td className={tdCls}>
                         {r.status === "Waiting" ? (
                           <button
@@ -836,6 +842,7 @@ export default function AdminPage() {
                     <th className={thCls}>{t("th_email")}</th>
                     <th className={thCls}>{t("th_photo")}</th>
                     <th className={thCls}>{t("th_status")}</th>
+                    <th className={thCls}>{t("th_finished_at")}</th>
                     <th className={thCls}>{t("th_action")}</th>
                     <th className={thCls}></th>
                   </tr>
@@ -843,7 +850,7 @@ export default function AdminPage() {
                 <tbody className="divide-y divide-slate-100">
                   {loading && (
                     <tr>
-                      <td colSpan={10} className="py-16 text-center">
+                      <td colSpan={11} className="py-16 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <div className="w-7 h-7 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin-smooth" />
                           <span className="text-sm text-slate-400">{t("loading")}</span>
@@ -853,7 +860,7 @@ export default function AdminPage() {
                   )}
                   {!loading && breakdownRows.length === 0 && (
                     <tr>
-                      <td colSpan={10} className="py-16 text-center text-sm text-slate-400">{t("no_records")}</td>
+                      <td colSpan={11} className="py-16 text-center text-sm text-slate-400">{t("no_records")}</td>
                     </tr>
                   )}
                   {!loading && pagedBreakdown.map((r, idx) => (
@@ -884,6 +891,9 @@ export default function AdminPage() {
                         )}
                       </td>
                       <td className={tdCls}><StatusBadge status={r.status} /></td>
+                      <td className={`${tdCls} font-mono text-xs text-slate-500 whitespace-nowrap`}>
+                        {r.finish_at ? formatTimestamp(r.finish_at) : <span className="text-slate-300">—</span>}
+                      </td>
                       <td className={tdCls}>
                         {r.status === "Waiting" ? (
                           <button

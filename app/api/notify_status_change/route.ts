@@ -32,6 +32,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Record not found" }, { status: 404 });
     }
 
+    // Record finish_at when status becomes Success
+    if (new_status === "Success") {
+      await supabase.from(table).update({ finish_at: new Date().toISOString() }).eq("id", id);
+    }
+
     const reporterEmail: string = record.email;
     const eventType: string = kind === "emergency"
       ? (record.emergency_type || "ไม่ระบุประเภท")
