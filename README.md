@@ -1,428 +1,494 @@
 # 🚨 40 Building Emergency Alert System
 
-ระบบแจ้งเหตุฉุกเฉินและแจ้งซ่อมอาคาร 40 มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ (KMUTNB)
+ระบบแจ้งเหตุฉุกเฉินและแจ้งซ่อมอาคาร 40  
+มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ (KMUTNB)
 
-**GitHub:** https://github.com/baitankub-boop/emergency_alert  
-**Deploy:** Vercel (พร้อม deploy ✓)
-
----
-
-## ภาพรวม (Overview)
-
-เว็บแอปพลิเคชันบริหารจัดการเหตุฉุกเฉินและแจ้งซ่อมภายในอาคาร 40 แบ่งผู้ใช้ออกเป็น 3 กลุ่ม:
-
-| กลุ่มผู้ใช้ | สิทธิ์ |
+| | |
 |---|---|
-| **User** | สมัครสมาชิก / Login (Google หรือ Email+OTP) → แจ้งเหตุ → ดู/แก้ไข/ลบรายการของตัวเอง |
-| **Admin** | ดูข้อมูลทั้งหมด → รับเรื่อง → แก้ไข/ลบทุก record → ดู Report → Export Excel/PDF → เพิ่ม Admin/Operator |
-| **Operator** | ดูข้อมูลทั้งหมด → อัปเดตผล (Success/Failed) → แก้ไข/ลบทุก record |
+| **GitHub** | https://github.com/baitankub-boop/emergency_alert |
+| **Production** | https://emergency-alert-gilt.vercel.app |
+| **Hosting** | Vercel (พร้อม deploy ✓) |
 
 ---
 
-## Tech Stack
+## 1. ภาพรวมระบบ (System Overview)
 
-| ส่วน | เทคโนโลยี |
-|---|---|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript |
-| UI | React 19 + Tailwind CSS |
-| Database | Supabase (PostgreSQL) |
-| File Storage | Supabase Storage |
-| Auth (User) | Supabase Auth — Google OAuth (PKCE) + Email+Password+OTP |
-| Auth (Admin/Operator) | localStorage session (10 นาที) + scrypt password hashing |
-| Email | Nodemailer + Gmail SMTP |
-| Charts (Report) | SVG Pie Chart (ไม่ต้องติดตั้ง library) |
-| Export | xlsx (Excel), jsPDF + jspdf-autotable (PDF) |
-| i18n | Custom LanguageContext (TH / EN) |
+ระบบนี้ให้ผู้ใช้งานภายในอาคาร 40 แจ้งเหตุฉุกเฉินหรือแจ้งซ่อมได้ผ่านเว็บ โดยมีระบบแจ้งเตือน email อัตโนมัติไปยังทุกฝ่ายที่เกี่ยวข้อง และ Admin/Operator สามารถติดตาม อัปเดตสถานะ และดู Report ได้
+
+### ผู้ใช้งาน 3 กลุ่ม
+
+| กลุ่ม | วิธี Login | สิทธิ์ |
+|---|---|---|
+| **User** | Google OAuth หรือ Email+Password+OTP | แจ้งเหตุ · ดู/แก้ไข/ลบรายการตัวเอง |
+| **Admin** | Email+Password (scrypt) · session 10 นาที | ดูทุก record · รับเรื่อง · แก้ไข/ลบ · Report · Export · เพิ่ม Admin/Operator |
+| **Operator** | Email+Password (scrypt) · session 10 นาที | ดูทุก record · อัปเดตผล (Success/Failed) · แก้ไข/ลบ |
 
 ---
 
-## Context Diagram
+## 2. Tech Stack
+
+| ส่วน | เทคโนโลยี | เวอร์ชัน |
+|---|---|---|
+| Framework | Next.js App Router | 16.0.7 |
+| Language | TypeScript | ^5 |
+| Styling | Tailwind CSS | ^3.4 |
+| Database | Supabase (PostgreSQL) | ^2.91 |
+| Auth (User) | Supabase Auth | PKCE + Email OTP |
+| Auth (Admin/Operator) | Custom localStorage + scrypt | — |
+| File Storage | Supabase Storage | — |
+| Email | Nodemailer + Gmail SMTP | ^6 |
+| Charts | SVG (ไม่มี library) | — |
+| Excel Export | SheetJS (xlsx) | — |
+| PDF Export | jsPDF + jspdf-autotable | — |
+| i18n | Custom LanguageContext | TH / EN |
+| Hosting | Vercel | — |
+
+---
+
+## 3. Context Diagram
 
 ```mermaid
 graph TD
-    User["👤 User\n(ผู้ใช้ทั่วไป)"]
-    Admin["🛡️ Admin"]
-    Operator["👷 Operator"]
-    System["🏢 40 Building\nAlert System"]
-    Supabase["🗄️ Supabase\n(DB + Auth + Storage)"]
-    Gmail["📧 Gmail SMTP\n(Nodemailer)"]
-    Google["🔵 Google OAuth"]
-    Vercel["☁️ Vercel\n(Hosting)"]
+    U["👤 User\n(ผู้ใช้ทั่วไป)"]
+    A["🛡️ Admin"]
+    O["👷 Operator"]
 
-    User -- "แจ้งเหตุ / ดูสถานะ" --> System
-    Admin -- "รับเรื่อง / จัดการ / Report" --> System
-    Operator -- "อัปเดตผล / จัดการ" --> System
-    System -- "บันทึก/ดึงข้อมูล" --> Supabase
-    System -- "ส่ง Email แจ้งเตือน" --> Gmail
-    Gmail -- "OTP / Notification" --> User
-    Gmail -- "Notification" --> Admin
-    Gmail -- "Notification" --> Operator
-    User -- "Sign in with Google" --> Google
-    Google -- "OAuth Callback" --> System
-    System -- "Deploy" --> Vercel
+    subgraph System["🏢 40 Building Alert System (Vercel)"]
+        WEB["Next.js Web App"]
+        API["API Routes\n(Server-side)"]
+    end
+
+    subgraph External["External Services"]
+        SB["🗄️ Supabase\nDB · Auth · Storage"]
+        GM["📧 Gmail SMTP\n(Nodemailer)"]
+        GO["🔵 Google OAuth"]
+    end
+
+    U -- "แจ้งเหตุ / ดูสถานะ" --> WEB
+    A -- "จัดการ / Report" --> WEB
+    O -- "อัปเดตผล" --> WEB
+    WEB --> API
+    API -- "อ่าน/เขียนข้อมูล" --> SB
+    API -- "ส่ง Email แจ้งเตือน+OTP" --> GM
+    GM -- "Email" --> U
+    GM -- "Email" --> A
+    GM -- "Email" --> O
+    U -- "Sign in with Google" --> GO
+    GO -- "PKCE Callback" --> SB
+    SB -- "Session Token" --> WEB
 ```
 
 ---
 
-## ER Diagram (Database)
+## 4. Architecture Diagram
+
+```mermaid
+graph LR
+    subgraph Browser
+        UI["React Components\n(Client)"]
+    end
+
+    subgraph Vercel["Vercel (Next.js)"]
+        PAGES["App Router Pages\n/emergency\n/breakdown\n/admin_page\n/operator_page\n..."]
+        ROUTES["API Routes\n/api/submit_emergency\n/api/submit_breakdown\n/api/send_registration_otp\n/api/verify_registration_otp\n/api/notify_status_change\n/api/verify_admin\n/api/verify_operator"]
+        LIB["lib/\nsupabase.ts\nmailer.ts\nLanguageContext.tsx\nadminSession.ts\noperatorSession.ts"]
+    end
+
+    subgraph Supabase
+        DB["PostgreSQL\nemergency_data\nbreakdown_data\nadmin_data\noperator_data\nregistration_otps"]
+        AUTH["Auth\n(Google OAuth + Email OTP)"]
+        STORAGE["Storage\nemergency-photos\nbreakdown-photos"]
+    end
+
+    GMAIL["Gmail SMTP"]
+
+    UI --> PAGES
+    PAGES --> ROUTES
+    ROUTES --> LIB
+    LIB --> DB
+    LIB --> AUTH
+    UI --> STORAGE
+    ROUTES --> GMAIL
+```
+
+---
+
+## 5. ER Diagram (Database Schema)
 
 ```mermaid
 erDiagram
     emergency_data {
         int id PK
-        text emergency_type
-        text floor
-        text description
-        text email
-        text status
-        text photo_url
         timestamptz created_at
+        text emergency_type "เป็นลม/อุบัติเหตุ/ทะเลาะ/พบโจร/ล่วงละเมิด/สัตว์กัด/อื่นๆ"
+        text floor "ตัวเลข เช่น 3"
+        text description
+        text email "FK → auth.users.email"
+        text status "Waiting/In Process/Success/Failed"
+        text photo_url "nullable - Supabase Storage URL"
     }
+
     breakdown_data {
         int id PK
-        text breakdown_type
-        text floor
-        text description
-        text email
-        text status
-        text photo_url
         timestamptz created_at
+        text breakdown_type "ไฟฟ้า/ประปา/แอร์/ลิฟต์/อินเทอร์เน็ต/อุปกรณ์/อื่นๆ"
+        text floor "ตัวเลข เช่น 3"
+        text description
+        text email "FK → auth.users.email"
+        text status "Waiting/In Process/Success/Failed"
+        text photo_url "nullable - Supabase Storage URL"
     }
+
     admin_data {
         int id PK
         text first_name
         text last_name
         text email
-        text password
+        text password "salt:hash (scrypt)"
     }
+
     operator_data {
         int id PK
         text first_name
         text last_name
         text email
-        text password
+        text password "salt:hash (scrypt)"
     }
+
     registration_otps {
         int id PK
         text email
-        text otp_hash
-        text type
-        jsonb pending_data
-        timestamptz expires_at
+        text otp_hash "SHA-256 hash"
+        text type "user/admin/operator"
+        jsonb pending_data "ข้อมูล registration ที่รอ verify"
+        timestamptz expires_at "หมดอายุ 10 นาที"
         timestamptz created_at
     }
-
-    emergency_data ||--o{ registration_otps : ""
-    breakdown_data ||--o{ registration_otps : ""
-```
-
-> **หมายเหตุ:** User accounts จัดการโดย Supabase Auth (`auth.users`) — ไม่มี custom table
-
----
-
-## Flowchart — User Registration (Email)
-
-```mermaid
-flowchart TD
-    A([เริ่ม]) --> B[กรอก email + password]
-    B --> C[กด สมัครสมาชิก]
-    C --> D[/API: send_registration_otp\ntype=user/]
-    D --> E[สร้าง OTP 6 หลัก\nเก็บ hash ใน registration_otps]
-    E --> F[ส่ง Email OTP ผ่าน Gmail]
-    F --> G[Redirect → /verify_registration_otp]
-    G --> H[กรอก OTP 6 หลัก]
-    H --> I{OTP ถูกต้อง\nและยังไม่หมดอายุ?}
-    I -- ไม่ --> J[แสดง Error]
-    J --> H
-    I -- ใช่ --> K[/API: verify_registration_otp/]
-    K --> L[สร้าง Supabase Auth User\nemail_confirm=true]
-    L --> M[ลบ OTP record]
-    M --> N[Redirect → /user_login]
-    N --> Z([จบ])
 ```
 
 ---
 
-## Flowchart — User Login (Google OAuth PKCE)
+## 6. Flowchart — User Registration (Email+Password)
 
 ```mermaid
 flowchart TD
-    A([เริ่ม]) --> B[กด Sign in with Google]
-    B --> C[Supabase → Google OAuth]
-    C --> D[User ยืนยันใน Google]
-    D --> E[Google → Supabase callback]
-    E --> F[Supabase → /auth/callback?code=XXXX]
-    F --> G[exchangeCodeForSession]
-    G --> H{Session ถูกต้อง?}
-    H -- ใช่ --> I[Redirect → Home page]
-    H -- ไม่ --> J[Redirect → /user_login]
-    I --> Z([จบ])
+    A([Start]) --> B["กรอก email + password\nที่ /user_register"]
+    B --> C["POST /api/send_registration_otp\ntype=user"]
+    C --> D["สร้าง OTP 6 หลัก (random)\nhash ด้วย SHA-256\nเก็บใน registration_otps\nexpires_at = NOW + 10min"]
+    D --> E["ส่ง Email OTP\nผ่าน Gmail SMTP (Nodemailer)\nหัวเรื่อง: 40 building alarm OTP"]
+    E --> F["Redirect → /verify_registration_otp\n?email=...&type=user"]
+    F --> G["กรอก OTP 6 หลัก"]
+    G --> H{"OTP ถูกต้อง\nและยังไม่หมดอายุ?"}
+    H -- ไม่ --> I["แสดง Error\nลอง Resend ได้ (cooldown 60s)"]
+    I --> G
+    H -- ใช่ --> J["POST /api/verify_registration_otp"]
+    J --> K["supabaseAdmin.auth.admin.createUser\nemail_confirm = true"]
+    K --> L["ลบ OTP record\nออกจาก registration_otps"]
+    L --> M["Redirect → /user_login"]
+    M --> Z([End])
 ```
 
 ---
 
-## Flowchart — แจ้งเหตุฉุกเฉิน
+## 7. Flowchart — User Login (Google OAuth PKCE)
 
 ```mermaid
 flowchart TD
-    A([เริ่ม]) --> B{Login แล้ว?}
-    B -- ไม่ --> C[Redirect → /user_login]
-    B -- ใช่ --> D[กรอกฟอร์ม:\nประเภท/ชั้น/รายละเอียด/รูปภาพ]
-    D --> E{มีรูปภาพ?}
-    E -- ใช่ --> F[Upload รูป → Supabase Storage\nได้ public URL]
-    E -- ไม่ --> G[photo_url = null]
-    F --> H[POST /api/submit_emergency]
+    A([Start]) --> B["กด Sign in with Google\nที่ /user_login"]
+    B --> C["supabase.auth.signInWithOAuth\nprovider: google\nredirectTo: origin/auth/callback"]
+    C --> D["Browser → Google consent screen"]
+    D --> E["Google → Supabase server\n/auth/v1/callback"]
+    E --> F{"Client Secret\nถูกต้อง?"}
+    F -- ไม่ --> G["Error: Unable to exchange code\nRedirect → /user_login"]
+    F -- ใช่ --> H["Supabase → Browser\n/auth/callback?code=XXXX"]
+    H --> I["exchangeCodeForSession(code)\nสร้าง session"]
+    I --> J["Redirect → Home page /"]
+    J --> Z([End])
+```
+
+---
+
+## 8. Flowchart — แจ้งเหตุฉุกเฉิน
+
+```mermaid
+flowchart TD
+    A([Start]) --> B{"Login แล้ว?"}
+    B -- ไม่ --> C["Redirect → /user_login"]
+    B -- ใช่ --> D["กรอกฟอร์ม\nประเภทเหตุ + ชั้น + รายละเอียด"]
+    D --> E{"แนบรูปภาพ?"}
+    E -- ใช่ --> F["Upload ตรงไป\nSupabase Storage\n(emergency-photos)\nได้ public URL"]
+    E -- ไม่ --> G["photo_url = null"]
+    F --> H["POST /api/submit_emergency"]
     G --> H
-    H --> I[บันทึกลง emergency_data\nstatus=Waiting]
-    I --> J[ส่ง Email แจ้งเตือน\nUser + Admin + Operator ทุกคน]
-    J --> K[แสดง Success]
-    K --> Z([จบ])
+    H --> I["INSERT emergency_data\nstatus = Waiting\ncreated_at = NOW()"]
+    I --> J["SELECT emails\nadmin_data + operator_data"]
+    J --> K["sendMail(reporter + admin + operator)\nหัวเรื่อง: แจ้งเหตุฉุกเฉิน\nเนื้อหา: ประเภท/รายละเอียด/ชั้น/เวลา"]
+    K --> L["แสดง Success message"]
+    L --> Z([End])
 ```
 
 ---
 
-## Flowchart — Admin เพิ่ม Admin/Operator ใหม่
+## 9. Flowchart — เพิ่ม Admin / Operator (OTP)
 
 ```mermaid
 flowchart TD
-    A([เริ่ม]) --> B[กรอกข้อมูล\nชื่อ/นามสกุล/email/password]
-    B --> C[POST /api/send_registration_otp\ntype=admin หรือ operator]
-    C --> D[Hash password ด้วย scrypt]
-    D --> E[สร้าง OTP + เก็บใน registration_otps]
-    E --> F[ส่ง Email OTP ผ่าน Gmail\nหัวเรื่อง: 40 building alarm OTP]
-    F --> G[Redirect → /verify_registration_otp]
-    G --> H[กรอก OTP 6 หลัก]
-    H --> I{OTP ถูกต้อง?}
-    I -- ไม่ --> J[แสดง Error]
+    A([Start]) --> B["Admin กรอกข้อมูล\nชื่อ/นามสกุล/email/password\nที่ /add_admin หรือ /add_operator"]
+    B --> C["POST /api/send_registration_otp\ntype = admin หรือ operator"]
+    C --> D["Hash password ด้วย scrypt\n(salt:hash)"]
+    D --> E["สร้าง OTP 6 หลัก\nเก็บ hash + pending_data\nใน registration_otps\nexpires = 10 นาที"]
+    E --> F["ส่ง Email\nหัวเรื่อง: 40 building alarm OTP\nผ่าน Gmail SMTP"]
+    F --> G["Redirect → /verify_registration_otp\n?email=...&type=admin/operator"]
+    G --> H["กรอก OTP 6 หลัก"]
+    H --> I{"OTP ถูกต้อง?"}
+    I -- ไม่ --> J["Error / Resend"]
     J --> H
-    I -- ใช่ --> K[Insert ลง admin_data / operator_data]
-    K --> L[ลบ OTP record]
-    L --> M[Redirect → /admin_page]
-    M --> Z([จบ])
+    I -- ใช่ --> K["INSERT ลง admin_data\nหรือ operator_data\n(ใช้ hashed password)"]
+    K --> L["ลบ OTP record"]
+    L --> M["Redirect → /admin_page"]
+    M --> Z([End])
 ```
 
 ---
 
-## Sequence Diagram — Status Update & Email Notification
+## 10. Flowchart — อัปเดต Status
+
+```mermaid
+flowchart TD
+    A([Start]) --> B{"ใคร update?"}
+    B -- "Admin\n(รับเรื่อง)" --> C["UPDATE status\nWaiting → In Process"]
+    B -- "Operator\n(Success/Failed)" --> D["UPDATE status\nIn Process → Success/Failed"]
+    B -- "Admin หรือ Operator\n(Edit Modal)" --> E{"Status\nเปลี่ยนหรือเปล่า?"}
+    E -- ไม่ --> F["UPDATE fields เท่านั้น\n(ไม่ส่ง email)"]
+    E -- ใช่ --> G["UPDATE fields\n+ status ใหม่"]
+    C --> H
+    D --> H
+    G --> H["POST /api/notify_status_change\n{table, id, old_status, new_status}"]
+    H --> I["SELECT record details\n(email, type, description)"]
+    I --> J["SELECT emails\nadmin_data + operator_data"]
+    J --> K{"new_status\n= Success?"}
+    K -- ใช่ --> L["sendMail\nหัวเรื่อง: อัปเดทสถานะ...\nเนื้อหา: ได้รับการแก้ไขเสร็จสิ้น"]
+    K -- ไม่ --> M["sendMail\nหัวเรื่อง: อัปเดทสถานะ...\nเนื้อหา: old → new status"]
+    L --> N([End])
+    M --> N
+    F --> N
+```
+
+---
+
+## 11. Sequence Diagram — แจ้งเหตุ + Email Notification
 
 ```mermaid
 sequenceDiagram
-    actor Admin
-    participant AdminPage as Admin Page
-    participant Supabase
-    participant NotifyAPI as /api/notify_status_change
-    participant Mailer as Gmail SMTP
-    actor User
-    actor AllStaff as Admin+Operator (All)
+    actor U as User
+    participant F as Emergency Form
+    participant ST as Supabase Storage
+    participant API as /api/submit_emergency
+    participant DB as Supabase DB
+    participant ML as Gmail SMTP
+    actor AO as Admin + Operator (All)
 
-    Admin->>AdminPage: กด "รับเรื่อง" (Waiting→In Process)
-    AdminPage->>Supabase: UPDATE status = "In Process"
-    Supabase-->>AdminPage: OK
-    AdminPage->>NotifyAPI: POST {table, id, old_status, new_status}
-    NotifyAPI->>Supabase: SELECT record details
-    NotifyAPI->>Supabase: SELECT admin_data emails
-    NotifyAPI->>Supabase: SELECT operator_data emails
-    NotifyAPI->>Mailer: sendMail(User+Admin+Operator)
-    Mailer-->>User: Email: อัปเดทสถานะเหตุฉุกเฉิน
-    Mailer-->>AllStaff: Email: อัปเดทสถานะเหตุฉุกเฉิน
-    NotifyAPI-->>AdminPage: {success: true}
+    U->>F: กรอกฟอร์ม + เลือกรูป
+    F->>ST: upload photo
+    ST-->>F: public photo URL
+    F->>API: POST {emergency_type, floor, desc, email, photo_url}
+    API->>DB: INSERT emergency_data → ได้ created_at
+    API->>DB: SELECT emails from admin_data + operator_data
+    DB-->>API: รายชื่อ email ทั้งหมด
+    API->>ML: sendMail([user, admin1, admin2, op1, ...])
+    ML-->>U: Email แจ้งเหตุฉุกเฉิน
+    ML-->>AO: Email แจ้งเหตุฉุกเฉิน
+    API-->>F: {success: true}
+    F-->>U: แสดงข้อความสำเร็จ
 ```
 
 ---
 
-## Sequence Diagram — User แจ้งเหตุและรับ Email
+## 12. Sequence Diagram — Status Update + Notification
 
 ```mermaid
 sequenceDiagram
-    actor User
-    participant EmergencyForm as /emergency
-    participant SubmitAPI as /api/submit_emergency
-    participant Supabase
-    participant Mailer as Gmail SMTP
-    actor AdminOp as Admin + Operator (All)
+    actor AD as Admin/Operator
+    participant PG as Dashboard Page
+    participant DB as Supabase DB
+    participant NA as /api/notify_status_change
+    participant ML as Gmail SMTP
+    actor ALL as User + Admin + Operator (All)
 
-    User->>EmergencyForm: กรอกฟอร์ม + เลือกรูป
-    EmergencyForm->>Supabase: upload photo → Storage
-    Supabase-->>EmergencyForm: public photo URL
-    EmergencyForm->>SubmitAPI: POST {emergency_type, floor, desc, email, photo_url}
-    SubmitAPI->>Supabase: INSERT emergency_data
-    Supabase-->>SubmitAPI: created_at timestamp
-    SubmitAPI->>Supabase: SELECT all admin+operator emails
-    SubmitAPI->>Mailer: sendMail(User + Admin + Operator)
-    Mailer-->>User: Email: แจ้งเหตุฉุกเฉิน
-    Mailer-->>AdminOp: Email: แจ้งเหตุฉุกเฉิน
-    SubmitAPI-->>EmergencyForm: {success: true}
-    EmergencyForm-->>User: แสดงข้อความสำเร็จ
+    AD->>PG: กด "รับเรื่อง" / "Success" / "Failed"\nหรือ แก้ไข status ใน Edit Modal
+    PG->>DB: UPDATE status = new_status
+    DB-->>PG: OK
+    PG->>NA: POST {table, id, old_status, new_status}
+    NA->>DB: SELECT record (email, type, description)
+    NA->>DB: SELECT admin_data.email + operator_data.email
+    DB-->>NA: ข้อมูลครบ
+    NA->>ML: sendMail(user + all admins + all operators)
+    ML-->>ALL: Email อัปเดทสถานะ
+    NA-->>PG: {success: true}
 ```
 
 ---
 
-## Database Schema
+## 13. Sequence Diagram — Google OAuth PKCE Flow
 
-### `emergency_data`
-| Column | Type | Description |
-|---|---|---|
-| `id` | int | Primary key |
-| `created_at` | timestamptz | เวลาที่แจ้ง |
-| `emergency_type` | text | ประเภท (เป็นลม/อุบัติเหตุ/ทะเลาะวิวาท/พบโจร/ล่วงละเมิด/สัตว์กัด/อื่นๆ) |
-| `floor` | text | ชั้น (เก็บเป็นตัวเลข เช่น "3") |
-| `description` | text | รายละเอียด |
-| `email` | text | อีเมลผู้แจ้ง |
-| `status` | text | `Waiting` → `In Process` → `Success` / `Failed` |
-| `photo_url` | text | URL รูปภาพจาก Supabase Storage (nullable) |
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant APP as Next.js App (Vercel)
+    participant SB as Supabase Auth Server
+    participant G as Google OAuth
 
-### `breakdown_data`
-| Column | Type | Description |
-|---|---|---|
-| `id` | int | Primary key |
-| `created_at` | timestamptz | เวลาที่แจ้ง |
-| `breakdown_type` | text | ประเภท (ไฟฟ้า/ประปา/แอร์/ลิฟต์/อินเทอร์เน็ต/อุปกรณ์/อื่นๆ) |
-| `floor` | text | ชั้น (ตัวเลข เช่น "3") |
-| `description` | text | รายละเอียด |
-| `email` | text | อีเมลผู้แจ้ง |
-| `status` | text | `Waiting` → `In Process` → `Success` / `Failed` |
-| `photo_url` | text | URL รูปภาพจาก Supabase Storage (nullable) |
-
-### `admin_data` / `operator_data`
-| Column | Type | Description |
-|---|---|---|
-| `id` | int | Primary key |
-| `first_name` | text | ชื่อ |
-| `last_name` | text | นามสกุล |
-| `email` | text | อีเมล |
-| `password` | text | `salt:hash` (scrypt) |
-
-### `registration_otps`
-| Column | Type | Description |
-|---|---|---|
-| `id` | int | Primary key |
-| `email` | text | อีเมลที่ขอ OTP |
-| `otp_hash` | text | SHA-256 hash ของ OTP |
-| `type` | text | `user` / `admin` / `operator` |
-| `pending_data` | jsonb | ข้อมูล registration ที่รอ verify |
-| `expires_at` | timestamptz | หมดอายุใน 10 นาที |
-| `created_at` | timestamptz | เวลาสร้าง |
-
----
-
-## Email Notification System
-
-| Event | ส่งถึง | หัวเรื่อง |
-|---|---|---|
-| แจ้งเหตุฉุกเฉิน | User + Admin ทุกคน + Operator ทุกคน | แจ้งเหตุฉุกเฉิน |
-| แจ้งเหตุขัดข้อง | User + Admin ทุกคน + Operator ทุกคน | แจ้งเหตุขัดข้อง |
-| อัปเดต status | User + Admin ทุกคน + Operator ทุกคน | อัปเดทสถานะเหตุ... |
-| OTP (User/Admin/Operator) | เฉพาะ email ที่ขอ | 40 building alarm OTP |
-
----
-
-## API Endpoints
-
-### Public APIs
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/submit_emergency` | แจ้งเหตุฉุกเฉิน + ส่ง email |
-| POST | `/api/submit_breakdown` | แจ้งเหตุขัดข้อง + ส่ง email |
-| POST | `/api/verify_admin` | Login Admin |
-| POST | `/api/verify_operator` | Login Operator |
-| POST | `/api/send_registration_otp` | ส่ง OTP สำหรับ register (user/admin/operator) |
-| POST | `/api/verify_registration_otp` | Verify OTP + สร้าง account |
-| POST | `/api/notify_status_change` | ส่ง email เมื่อ status เปลี่ยน |
-
-### Admin-only APIs
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/add_admin` | เพิ่ม Admin (legacy, ใช้ OTP flow แทน) |
-| POST | `/api/add_operator` | เพิ่ม Operator (legacy) |
-
----
-
-## Supabase Storage
-
-| Bucket | ใช้สำหรับ |
-|---|---|
-| `emergency-photos` | รูปภาพแนบกับการแจ้งเหตุฉุกเฉิน |
-| `breakdown-photos` | รูปภาพแนบกับการแจ้งซ่อม |
-
----
-
-## Supabase RLS Policies ที่จำเป็น
-
-```sql
--- emergency_data, breakdown_data: อ่านได้ทุก role
-ALTER POLICY ... TO anon, authenticated USING (true);
-
--- registration_otps: อนุญาตทุก operation
-CREATE POLICY "allow_registration_otp" ON registration_otps
-FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
--- Storage upload
-CREATE POLICY "auth users upload emergency photos"
-ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (bucket_id = 'emergency-photos');
-
-CREATE POLICY "auth users upload breakdown photos"
-ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (bucket_id = 'breakdown-photos');
+    U->>APP: กด "Sign in with Google"
+    APP->>APP: สร้าง code_verifier + code_challenge (PKCE)
+    APP->>SB: signInWithOAuth({provider: google, redirectTo: .../auth/callback})
+    SB->>G: Redirect + code_challenge
+    G->>U: แสดง Google consent screen
+    U->>G: อนุมัติ
+    G->>SB: Redirect + authorization_code
+    SB->>G: exchange code → access_token (ใช้ client_secret)
+    G-->>SB: access_token + user info
+    SB->>APP: Redirect → /auth/callback?code=XXXX
+    APP->>SB: exchangeCodeForSession(code, code_verifier)
+    SB-->>APP: session (JWT)
+    APP->>U: Redirect → Home page
 ```
 
 ---
 
-## Session Management
+## 14. Sequence Diagram — OTP Registration Flow
 
-| ผู้ใช้ | ระบบ | Timeout |
-|---|---|---|
-| User | Supabase Auth JWT (localStorage) | ตาม Supabase config |
-| Admin / Operator | Custom localStorage session | **10 นาที** (reset เมื่อมี activity) |
+```mermaid
+sequenceDiagram
+    actor U as User/Admin
+    participant F as Register Form
+    participant API1 as /api/send_registration_otp
+    participant DB as Supabase DB
+    participant ML as Gmail SMTP
+    participant OTP as /verify_registration_otp page
+    participant API2 as /api/verify_registration_otp
+
+    U->>F: กรอกข้อมูล + กด Submit
+    F->>API1: POST {email, password, type, ...}
+    API1->>API1: สร้าง OTP 6 หลัก\nhash ด้วย SHA-256\nhash password ด้วย scrypt (admin/op)
+    API1->>DB: DELETE OTP เก่า (email+type)\nINSERT OTP ใหม่ + pending_data
+    API1->>ML: sendMail(email)\nหัวเรื่อง: 40 building alarm OTP
+    ML-->>U: Email OTP 6 หลัก
+    API1-->>F: {success: true}
+    F->>OTP: Redirect ?email=...&type=...
+    U->>OTP: กรอก OTP 6 หลัก
+    OTP->>API2: POST {email, otp, type}
+    API2->>DB: SELECT OTP record
+    API2->>API2: ตรวจสอบ expires_at\ncompare SHA-256(otp) === otp_hash
+    alt OTP ถูก
+        API2->>DB: INSERT admin_data/operator_data\nหรือ createUser (user)
+        API2->>DB: DELETE OTP record
+        API2-->>OTP: {success: true}
+        OTP->>U: Redirect → login page
+    else OTP ผิด/หมดอายุ
+        API2-->>OTP: {error: "..."}
+        OTP->>U: แสดง Error
+    end
+```
 
 ---
 
-## โครงสร้างโปรเจค (Project Structure)
+## 15. API Endpoints
+
+### User APIs
+| Method | Endpoint | Body | คำอธิบาย |
+|---|---|---|---|
+| POST | `/api/submit_emergency` | `{emergency_type, floor, description, reporter_email, photo_url}` | แจ้งเหตุฉุกเฉิน + ส่ง email ทุกฝ่าย |
+| POST | `/api/submit_breakdown` | `{event_type, floor, description, reporter_email, photo_url}` | แจ้งซ่อม + ส่ง email ทุกฝ่าย |
+| POST | `/api/send_registration_otp` | `{email, password, type, first_name?, last_name?}` | ส่ง OTP ผ่าน Gmail |
+| POST | `/api/verify_registration_otp` | `{email, otp, type}` | Verify OTP + สร้าง account |
+
+### Admin/Operator APIs
+| Method | Endpoint | Body | คำอธิบาย |
+|---|---|---|---|
+| POST | `/api/verify_admin` | `{email, password}` | Admin login (scrypt verify) |
+| POST | `/api/verify_operator` | `{email, password}` | Operator login (scrypt verify) |
+| POST | `/api/notify_status_change` | `{table, id, old_status, new_status}` | ส่ง email เมื่อ status เปลี่ยน |
+
+---
+
+## 16. Email Notification System
+
+| Event | ผู้รับ | หัวเรื่อง | เนื้อหา |
+|---|---|---|---|
+| แจ้งเหตุฉุกเฉิน | User + Admin ทุกคน + Operator ทุกคน | แจ้งเหตุฉุกเฉิน | โดย {email} · {ประเภท} : {รายละเอียด} · ชั้น {ชั้น} · เวลา {timestamp} |
+| แจ้งเหตุขัดข้อง | User + Admin ทุกคน + Operator ทุกคน | แจ้งเหตุขัดข้อง | โดย {email} · {ประเภท} : {รายละเอียด} · ชั้น {ชั้น} · เวลา {timestamp} |
+| อัปเดต status (ทั่วไป) | User + Admin ทุกคน + Operator ทุกคน | อัปเดทสถานะ{ประเภท} | ผู้แจ้ง {email} · {ประเภท} : {รายละเอียด} · สถานะ: old → new |
+| อัปเดต status = Success | User + Admin ทุกคน + Operator ทุกคน | อัปเดทสถานะ{ประเภท} | ผู้แจ้ง {email} · {ประเภท} : {รายละเอียด} · ได้รับการแก้ไขเสร็จสิ้น |
+| OTP Registration | เฉพาะ email ที่ขอ | 40 building alarm OTP | รหัส OTP 6 หลัก (หมดอายุ 10 นาที) |
+
+---
+
+## 17. โครงสร้างโปรเจค
 
 ```
 emergency_alert/
 ├── app/
-│   ├── page.tsx                      # Home — ตารางสถานะ + สำหรับฉัน + แก้ไข/ลบ
-│   ├── emergency/page.tsx            # ฟอร์มแจ้งเหตุฉุกเฉิน (ประเภท + รูป)
-│   ├── breakdown/page.tsx            # ฟอร์มแจ้งซ่อม (ประเภท + รูป)
-│   ├── user_login/page.tsx           # Login (Google / Email+Password)
-│   ├── user_register/page.tsx        # Register → OTP
-│   ├── verify_otp/page.tsx           # OTP สำหรับ Supabase Auth (legacy)
-│   ├── verify_registration_otp/page.tsx  # OTP สำหรับ User/Admin/Operator register
-│   ├── auth/callback/page.tsx        # Google OAuth PKCE callback
-│   ├── contact/page.tsx
-│   ├── login_admin/page.tsx          # Admin login
-│   ├── admin_page/page.tsx           # Admin dashboard (Table + Report + Export)
-│   ├── add_admin/page.tsx            # เพิ่ม Admin → OTP
-│   ├── add_operator/page.tsx         # เพิ่ม Operator → OTP
-│   ├── operator_login/page.tsx       # Operator login
-│   ├── operator_page/page.tsx        # Operator dashboard
-│   ├── layout.tsx
+│   ├── page.tsx                        # Home: ตารางสถานะ · ปุ่ม "สำหรับฉัน" · Pagination · Edit/Delete
+│   ├── emergency/page.tsx              # ฟอร์มแจ้งเหตุฉุกเฉิน (เลือกประเภท + รูปภาพ)
+│   ├── breakdown/page.tsx              # ฟอร์มแจ้งซ่อม (เลือกประเภท + รูปภาพ)
+│   ├── user_login/page.tsx             # Login: Google OAuth + Email+Password
+│   ├── user_register/page.tsx          # Register → OTP via Gmail
+│   ├── verify_otp/page.tsx             # OTP สำหรับ Supabase Auth (legacy)
+│   ├── verify_registration_otp/page.tsx # OTP สำหรับ User/Admin/Operator register
+│   ├── auth/callback/page.tsx          # Google PKCE callback (exchangeCodeForSession)
+│   ├── contact/page.tsx                # ข้อมูลติดต่อ
+│   ├── login_admin/page.tsx            # Admin login
+│   ├── admin_page/page.tsx             # Admin dashboard:
+│   │                                   #   · ตาราง Emergency + Breakdown (pagination 10/หน้า)
+│   │                                   #   · รับเรื่อง (Waiting → In Process)
+│   │                                   #   · ดูรูป (modal)
+│   │                                   #   · Edit modal (ทุก field + status)
+│   │                                   #   · Delete (มี confirmation)
+│   │                                   #   · Report: Pie Chart ชั้น + Bar Chart ประเภท
+│   │                                   #   · Export Excel (3 sheets) + PDF
+│   ├── add_admin/page.tsx              # เพิ่ม Admin → OTP
+│   ├── add_operator/page.tsx           # เพิ่ม Operator → OTP
+│   ├── operator_login/page.tsx         # Operator login
+│   ├── operator_page/page.tsx          # Operator dashboard:
+│   │                                   #   · ตาราง Emergency + Breakdown
+│   │                                   #   · Success / Failed buttons
+│   │                                   #   · Edit modal + Delete
+│   ├── layout.tsx                      # Root layout
 │   └── api/
-│       ├── submit_emergency/route.ts
-│       ├── submit_breakdown/route.ts
-│       ├── send_registration_otp/route.ts
-│       ├── verify_registration_otp/route.ts
-│       ├── notify_status_change/route.ts
-│       ├── verify_admin/route.ts
-│       ├── verify_operator/route.ts
-│       ├── add_admin/route.ts
-│       └── add_operator/route.ts
+│       ├── submit_emergency/route.ts   # INSERT + Email notification
+│       ├── submit_breakdown/route.ts   # INSERT + Email notification
+│       ├── send_registration_otp/route.ts  # OTP generate + Gmail send
+│       ├── verify_registration_otp/route.ts # OTP verify + create account
+│       ├── notify_status_change/route.ts    # Email notification เมื่อ status เปลี่ยน
+│       ├── verify_admin/route.ts       # Admin login (scrypt compare)
+│       ├── verify_operator/route.ts    # Operator login (scrypt compare)
+│       ├── add_admin/route.ts          # (legacy)
+│       └── add_operator/route.ts       # (legacy)
 │
 ├── components/
-│   ├── Navbar.tsx                    # Navigation (ซ่อน user auth บนหน้า Admin/Operator)
+│   ├── Navbar.tsx                      # Navigation bar
+│   │                                   #   · ซ่อน user auth บนหน้า Admin/Operator
+│   │                                   #   · EN/TH toggle
+│   │                                   #   · User email + logout dropdown
+│   ├── Pagination.tsx                  # Dot pagination (useLanguage สำหรับ prev/next)
 │   ├── Footer.tsx
-│   ├── Pagination.tsx                # Dot pagination (10 rows/page)
-│   └── ClientLayout.tsx
+│   └── ClientLayout.tsx                # Wrap: LanguageProvider + Navbar + Footer
 │
 ├── lib/
-│   ├── supabase.ts                   # Supabase browser client
-│   ├── mailer.ts                     # Nodemailer + email templates
-│   ├── useUserAuth.ts                # Hook ป้องกันหน้า User
-│   ├── adminSession.ts / useAdminSession.ts
-│   ├── operatorSession.ts / useOperatorSession.ts
-│   └── LanguageContext.tsx           # i18n (TH / EN)
+│   ├── supabase.ts                     # Supabase browser client (singleton)
+│   ├── mailer.ts                       # Nodemailer transporter + email templates
+│   │                                   #   · sendMail(to[], subject, html)
+│   │                                   #   · getAllStaffEmails()
+│   │                                   #   · emergencySubmitHtml()
+│   │                                   #   · breakdownSubmitHtml()
+│   │                                   #   · statusUpdateHtml()
+│   │                                   #   · formatTimestamp() · displayFloor()
+│   ├── useUserAuth.ts                  # Hook: redirect → /user_login ถ้าไม่มี session
+│   ├── adminSession.ts                 # set/get/clear admin session (localStorage)
+│   ├── useAdminSession.ts              # Hook: redirect → /login_admin ถ้า session หมด
+│   ├── operatorSession.ts              # set/get/clear operator session
+│   ├── useOperatorSession.ts           # Hook: redirect → /operator_login
+│   └── LanguageContext.tsx             # i18n: TH/EN · translations object · t(key)
 │
 ├── public/
 │   ├── KMUTNB_Logo.svg.png
@@ -430,40 +496,151 @@ emergency_alert/
 │   └── breakdown_dog.png
 │
 ├── next.config.ts
-├── .env.local                        # ไม่ commit ลง Git
+├── .env.local                          # ⚠️ ไม่ commit ลง Git
 └── .env.example
 ```
 
 ---
 
-## การติดตั้ง (Setup)
+## 18. Database Tables ใน Supabase
 
-### 1. Clone และติดตั้ง dependencies
+### `emergency_data`
+| Column | Type | หมายเหตุ |
+|---|---|---|
+| id | int (PK) | auto increment |
+| created_at | timestamptz | Supabase default |
+| emergency_type | text | ประเภทเหตุ (canonical Thai หรือ custom) |
+| floor | text | เก็บเป็นตัวเลข เช่น "3" |
+| description | text | รายละเอียด |
+| email | text | email ผู้แจ้ง |
+| status | text | Waiting / In Process / Success / Failed |
+| photo_url | text (nullable) | URL จาก Supabase Storage |
+
+### `breakdown_data`
+| Column | Type | หมายเหตุ |
+|---|---|---|
+| id | int (PK) | auto increment |
+| created_at | timestamptz | |
+| breakdown_type | text | ประเภทขัดข้อง |
+| floor | text | ตัวเลข เช่น "3" |
+| description | text | |
+| email | text | |
+| status | text | Waiting / In Process / Success / Failed |
+| photo_url | text (nullable) | |
+
+### `admin_data` / `operator_data`
+| Column | Type | หมายเหตุ |
+|---|---|---|
+| id | int (PK) | |
+| first_name | text | |
+| last_name | text | |
+| email | text | |
+| password | text | `salt:hash` (scrypt 64 bytes) |
+
+### `registration_otps`
+| Column | Type | หมายเหตุ |
+|---|---|---|
+| id | int (PK) | |
+| email | text | email ที่ขอ OTP |
+| otp_hash | text | SHA-256(OTP) |
+| type | text | user / admin / operator |
+| pending_data | jsonb | ข้อมูล registration รอ verify |
+| expires_at | timestamptz | NOW() + 10 นาที |
+| created_at | timestamptz | |
+
+---
+
+## 19. Supabase Storage
+
+| Bucket | Access | ใช้สำหรับ |
+|---|---|---|
+| `emergency-photos` | Public read · Auth upload | รูปภาพแนบการแจ้งเหตุฉุกเฉิน |
+| `breakdown-photos` | Public read · Auth upload | รูปภาพแนบการแจ้งซ่อม |
+
+รูปภาพ upload จาก **client** โดยตรงด้วย user JWT → ได้ public URL → ส่งไป API → บันทึกใน DB
+
+---
+
+## 20. Session Management
+
+| ผู้ใช้ | วิธีเก็บ session | หมดอายุ | Reset timer |
+|---|---|---|---|
+| User | Supabase Auth JWT (localStorage auto) | ตาม Supabase config | อัตโนมัติ (refresh token) |
+| Admin | Custom localStorage + timestamp | **10 นาที** | ทุก mouse/keyboard/scroll/touch event |
+| Operator | Custom localStorage + timestamp | **10 นาที** | เหมือนกัน |
+
+Admin/Operator: ตรวจสอบทุก **30 วินาที** — ถ้าหมด → redirect กลับหน้า login อัตโนมัติ
+
+---
+
+## 21. Security
+
+| จุด | วิธีป้องกัน |
+|---|---|
+| Admin/Operator password | scrypt (salt 16 bytes, hash 64 bytes) + timingSafeEqual |
+| OTP | SHA-256 hash ก่อนเก็บ · หมดอายุ 10 นาที · ลบทันทีหลัง verify |
+| Google OAuth | PKCE flow (code_verifier ไม่ผ่าน network) |
+| Email credentials | Environment Variables (ไม่ commit Git) |
+| Supabase RLS | anon + authenticated access control |
+| Session | ตรวจสอบทุก 30 วินาที + activity-based reset |
+
+---
+
+## 22. i18n (Bilingual)
+
+รองรับ **ไทย (TH)** และ **อังกฤษ (EN)** — สลับได้ทันทีใน Navbar
+
+ครอบคลุม: ปุ่ม · headers · labels · status · ประเภท · loading states · error messages · pagination
+
+ข้อมูลที่เก็บใน DB ใช้รูปแบบ **canonical** (ตัวเลขสำหรับชั้น, Thai canonical สำหรับประเภทเหตุฉุกเฉิน) — แสดงผลด้วยฟังก์ชัน `displayFloor()` และ `displayEmergencyType()`
+
+---
+
+## 23. การติดตั้งและ Deploy
+
+### Local Development
+
 ```bash
 git clone https://github.com/baitankub-boop/emergency_alert.git
 cd emergency_alert
 pnpm install
 ```
 
-### 2. Environment Variables (`.env.local`)
+สร้าง `.env.local`:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
-SUPABASE_SECRET_KEY=<service-role-key>
-EMAIL_USER=your-gmail@gmail.com
-EMAIL_PASS=xxxx xxxx xxxx xxxx
+NEXT_PUBLIC_SUPABASE_URL=https://zqrlqanbnuwrvvqvcetx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
+SUPABASE_SECRET_KEY=<service role key>
+EMAIL_USER=baitankub@gmail.com
+EMAIL_PASS=<gmail app password>
 ```
 
-> **Gmail App Password:** Google Account → Security → 2-Step Verification → App passwords
+```bash
+pnpm dev    # http://localhost:3000
+```
 
-### 3. Supabase SQL Setup
+### Deploy to Vercel
+
+1. Push code ขึ้น GitHub
+2. Import repo ที่ [vercel.com](https://vercel.com)
+3. ตั้ง Environment Variables ใน Vercel dashboard (5 ตัวเดียวกัน)
+4. Deploy
+
+**Supabase → Authentication → URL Configuration → Redirect URLs:**
+```
+http://localhost:3000/auth/callback
+https://emergency-alert-gilt.vercel.app/auth/callback
+```
+
+### Supabase SQL Setup
+
 ```sql
--- 1. เพิ่ม column
+-- เพิ่ม columns
 ALTER TABLE emergency_data ADD COLUMN IF NOT EXISTS emergency_type TEXT;
 ALTER TABLE emergency_data ADD COLUMN IF NOT EXISTS photo_url TEXT;
 ALTER TABLE breakdown_data ADD COLUMN IF NOT EXISTS photo_url TEXT;
 
--- 2. OTP table
+-- OTP table
 CREATE TABLE registration_otps (
   id SERIAL PRIMARY KEY,
   email TEXT NOT NULL,
@@ -477,111 +654,59 @@ ALTER TABLE registration_otps ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow_registration_otp" ON registration_otps
 FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
--- 3. RLS สำหรับ emergency/breakdown
-ALTER TABLE emergency_data ENABLE ROW LEVEL SECURITY;
-ALTER TABLE breakdown_data ENABLE ROW LEVEL SECURITY;
--- (ดู RLS Policies section ด้านบน)
-
--- 4. Storage buckets (สร้างใน Supabase Dashboard → Storage)
--- emergency-photos (Public: ✓)
--- breakdown-photos (Public: ✓)
-```
-
-### 4. รัน Development Server
-```bash
-pnpm dev
+-- RLS สำหรับ emergency/breakdown (anon + authenticated อ่านได้)
+-- Storage policies (authenticated upload)
 ```
 
 ---
 
-## Deploy ลง Vercel
-
-### ขั้นตอน
-1. Push code ขึ้น GitHub:
-   ```bash
-   git add .
-   git commit -m "deploy"
-   git push
-   ```
-2. ไปที่ [vercel.com](https://vercel.com) → Import `emergency_alert` repository
-3. ตั้งค่า Environment Variables ใน Vercel dashboard (เหมือนกับ `.env.local`)
-4. Deploy ✓
-
-### Environment Variables ที่ต้องตั้งใน Vercel
-```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SECRET_KEY
-EMAIL_USER
-EMAIL_PASS
-```
-
----
-
-## Google OAuth Setup
-
-1. [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials
-2. OAuth 2.0 Client ID → Authorized redirect URIs:
-   ```
-   https://<project>.supabase.co/auth/v1/callback
-   ```
-3. Supabase Dashboard → Authentication → Providers → Google
-4. Supabase → Authentication → URL Configuration → Redirect URLs:
-   ```
-   http://localhost:3000/auth/callback
-   https://<your-vercel-domain>/auth/callback
-   ```
-
----
-
-## Features ทั้งหมด
+## 24. Features Summary
 
 ### User
-- ✅ Login ด้วย Google OAuth (PKCE, ไม่ต้อง OTP)
-- ✅ Register ด้วย Email+Password → OTP via Gmail
-- ✅ แจ้งเหตุฉุกเฉิน (พร้อมเลือกประเภท: เป็นลม/อุบัติเหตุ/ทะเลาะวิวาท/พบโจร/ล่วงละเมิด/สัตว์กัด)
-- ✅ แจ้งเหตุขัดข้อง (พร้อมเลือกประเภท: ไฟฟ้า/ประปา/แอร์/ลิฟต์/อินเทอร์เน็ต/อุปกรณ์)
-- ✅ แนบรูปภาพ (upload → Supabase Storage)
-- ✅ Auto-fill email จาก session
-- ✅ ดูรายการตัวเอง (ปุ่ม "สำหรับฉัน")
-- ✅ แก้ไขรายการตัวเอง (เฉพาะ status Waiting)
+- ✅ Login Google OAuth (PKCE) — ไม่ต้อง OTP
+- ✅ Register Email+Password → OTP ผ่าน Gmail
+- ✅ แจ้งเหตุฉุกเฉิน (6 ประเภท + อื่นๆ)
+- ✅ แจ้งซ่อม (6 ประเภท + อื่นๆ)
+- ✅ แนบรูปภาพ (preview ก่อน submit)
+- ✅ ดูเฉพาะรายการตัวเอง ("สำหรับฉัน")
+- ✅ แก้ไขรายการตัวเอง (เฉพาะ Waiting)
 - ✅ ลบรายการตัวเอง (พร้อม confirmation)
 - ✅ รับ email แจ้งเตือนทุก event
 
 ### Admin
-- ✅ Login ด้วย email+password (custom auth + scrypt)
-- ✅ ดูรายการทั้งหมด (Emergency + Breakdown) พร้อม pagination 10 rows/หน้า
-- ✅ รับเรื่อง (Waiting → In Process)
+- ✅ ดูรายการทั้งหมด (Pagination 10 rows/หน้า)
+- ✅ รับเรื่อง (Waiting → In Process) + email notification
 - ✅ ดูรูปภาพ (modal)
 - ✅ แก้ไขทุก field + status ทุก record
 - ✅ ลบ record (พร้อม confirmation)
-- ✅ Report Dashboard: สถิติ status + Pie Chart ชั้นที่มีเหตุบ่อย + Bar Chart ประเภทบ่อย
-- ✅ Export Excel (3 sheets: Emergency, Breakdown, Summary)
-- ✅ Export PDF (Summary + tables)
+- ✅ Report: Pie Chart ชั้นบ่อย + Bar Chart ประเภทบ่อย (Emergency + Breakdown แยกกัน)
+- ✅ Export Excel (Emergency sheet + Breakdown sheet + Summary sheet)
+- ✅ Export PDF (Summary + ตารางข้อมูล)
 - ✅ เพิ่ม Admin/Operator ใหม่ → OTP via Gmail
 - ✅ รับ email แจ้งเตือนทุก event
 
 ### Operator
-- ✅ Login ด้วย email+password (custom auth)
-- ✅ ดูรายการทั้งหมด พร้อม pagination
-- ✅ อัปเดต status (Success / Failed)
+- ✅ ดูรายการทั้งหมด (Pagination)
+- ✅ อัปเดต Success / Failed + email notification
 - ✅ ดูรูปภาพ (modal)
 - ✅ แก้ไขทุก field + status
 - ✅ ลบ record
 - ✅ รับ email แจ้งเตือนทุก event
 
-### ระบบทั่วไป
-- ✅ Bilingual UI (ภาษาไทย / อังกฤษ) สลับได้ทันที
-- ✅ Responsive design (mobile + desktop)
-- ✅ Session guard (auto-redirect เมื่อ session หมด)
+### ระบบ
+- ✅ Bilingual UI (TH/EN สลับได้ทันที)
+- ✅ Responsive (mobile + desktop)
 - ✅ Navbar ซ่อน user auth บนหน้า Admin/Operator
-- ✅ Status badge: Waiting (เหลือง) / In Process (น้ำเงิน) / Success (เขียว) / Failed (แดง)
+- ✅ Auto-redirect เมื่อ session หมด
+- ✅ Status flow: Waiting → In Process → Success/Failed
 
 ---
 
-## Status Flow
+## 25. Status Flow
 
 ```
 Waiting ──► In Process ──► Success
                       └──► Failed
 ```
+
+Email notification ถูกส่งทุกครั้งที่ status เปลี่ยน ไปยัง: **User ผู้แจ้ง + Admin ทุกคน + Operator ทุกคน**
