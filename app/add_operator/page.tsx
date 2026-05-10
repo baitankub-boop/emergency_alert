@@ -32,19 +32,19 @@ export default function AddOperatorPage() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/add_operator", {
+      const res = await fetch("/api/send_registration_otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ first_name: firstName, last_name: lastName, email, password }),
+        body: JSON.stringify({ first_name: firstName, last_name: lastName, email, password, type: "operator" }),
       });
 
       const json = await res.json();
 
       if (!res.ok) {
-        setError(json.error || "Failed to add operator");
+        setError(json.error || "Failed to send OTP");
       } else {
-        setSuccess("Operator added successfully! Redirecting...");
-        setTimeout(() => router.push("/admin_page"), 1500);
+        sessionStorage.setItem("pending_registration", JSON.stringify({ first_name: firstName, last_name: lastName, password }));
+        router.push(`/verify_registration_otp?email=${encodeURIComponent(email)}&type=operator`);
       }
     } catch {
       setError("Network error. Please try again.");

@@ -32,19 +32,20 @@ export default function AddAdminPage() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/add_admin", {
+      const res = await fetch("/api/send_registration_otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ first_name: firstName, last_name: lastName, email, password }),
+        body: JSON.stringify({ first_name: firstName, last_name: lastName, email, password, type: "admin" }),
       });
 
       const json = await res.json();
 
       if (!res.ok) {
-        setError(json.error || "Failed to add admin");
+        setError(json.error || "Failed to send OTP");
       } else {
-        setSuccess("Admin added successfully! Redirecting...");
-        setTimeout(() => router.push("/admin_page"), 1500);
+        // Store pending data for resend
+        sessionStorage.setItem("pending_registration", JSON.stringify({ first_name: firstName, last_name: lastName, password }));
+        router.push(`/verify_registration_otp?email=${encodeURIComponent(email)}&type=admin`);
       }
     } catch {
       setError("Network error. Please try again.");
@@ -199,7 +200,7 @@ export default function AddAdminPage() {
                   {loading ? (
                     <>
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin-smooth" />
-                      Adding...
+                      Sending OTP...
                     </>
                   ) : "Add Admin"}
                 </button>
