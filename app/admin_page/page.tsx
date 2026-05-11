@@ -257,8 +257,62 @@ export default function AdminPage() {
   };
 
   const exportPDF = () => {
+    const PIE_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6"];
+
+    const hexToRgb = (hex: string): [number, number, number] => [
+      parseInt(hex.slice(1, 3), 16),
+      parseInt(hex.slice(3, 5), 16),
+      parseInt(hex.slice(5, 7), 16),
+    ];
+
+    const makePieCanvas = (data: [string, number][]): string => {
+      const size = 200;
+      const canvas = document.createElement("canvas");
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext("2d")!;
+      const total = data.reduce((s, [, n]) => s + n, 0);
+      if (total === 0) return canvas.toDataURL();
+      const cx = size / 2, cy = size / 2, r = size / 2 - 4;
+      let ang = -Math.PI / 2;
+      data.forEach(([, value], i) => {
+        const sweep = (value / total) * 2 * Math.PI;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, ang, ang + sweep);
+        ctx.closePath();
+        ctx.fillStyle = PIE_COLORS[i % PIE_COLORS.length];
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ang += sweep;
+      });
+      return canvas.toDataURL("image/png");
+    };
+
+    const floorLabel = (f: string) => /^\d+$/.test(f) ? `Floor ${f}` : f;
+    const eTypeMap: Record<string, string> = {
+      "เป็นลม": "Fainting", "อุบัติเหตุร้ายแรง": "Accident",
+      "ทะเลาะวิวาท": "Fighting", "พบโจร": "Robbery",
+      "โดนล่วงละเมิด": "Harassment", "สัตว์มีพิษกัด": "Animal Bite",
+    };
+    const bTypeMap: Record<string, string> = {
+      "ระบบไฟฟ้า": "Electrical", "ระบบประปา": "Plumbing",
+      "ระบบปรับอากาศ": "A/C", "ลิฟต์": "Elevator",
+      "อินเทอร์เน็ต/เครือข่าย": "Internet", "อุปกรณ์": "Equipment",
+    };
+    const countBy = (labels: string[]): [string, number][] =>
+      Object.entries(labels.reduce((acc, l) => { acc[l] = (acc[l] || 0) + 1; return acc; }, {} as Record<string, number>))
+        .sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+    const pdfFloorsE = countBy(emergencyRows.map(r => floorLabel(r.floor)));
+    const pdfFloorsB = countBy(breakdownRows.map(r => floorLabel(r.floor)));
+    const pdfTypesE = countBy(emergencyRows.filter(r => r.emergency_type).map(r => eTypeMap[r.emergency_type] ?? r.emergency_type));
+    const pdfTypesB = countBy(breakdownRows.filter(r => r.breakdown_type).map(r => bTypeMap[r.breakdown_type] ?? r.breakdown_type));
+
     const doc = new jsPDF();
     const date = new Date().toLocaleDateString();
+
     doc.setFontSize(16); doc.text("Emergency & Breakdown Report", 14, 18);
     doc.setFontSize(9); doc.setTextColor(120); doc.text(`Generated: ${date}`, 14, 25); doc.setTextColor(0);
     doc.setFontSize(12); doc.text("Summary", 14, 35);
@@ -271,6 +325,46 @@ export default function AdminPage() {
       ],
       styles: { fontSize: 9 }, headStyles: { fillColor: [30, 41, 59] },
     });
+
+    let y = (doc as any).lastAutoTable.finalY + 12;
+    if (y + 130 > 270) { doc.addPage(); y = 14; }
+
+    const charts: { title: string; data: [string, number][] }[] = [
+      { title: "Top Floors — Emergency", data: pdfFloorsE },
+      { title: "Top Floors — Breakdown", data: pdfFloorsB },
+      { title: "Top Emergency Types", data: pdfTypesE },
+      { title: "Top Breakdown Types", data: pdfTypesB },
+    ];
+    const imgW = 40, imgH = 40, colW = 95;
+    charts.forEach((chart, idx) => {
+      const col = idx % 2;
+      const row = Math.floor(idx / 2);
+      const bx = 14 + col * colW;
+      const by = y + row * 65;
+
+      doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(60);
+      doc.text(chart.title, bx, by);
+      doc.setFont("helvetica", "normal");
+
+      if (chart.data.length === 0) {
+        doc.setFontSize(7); doc.setTextColor(150); doc.text("No data", bx, by + 10); doc.setTextColor(0);
+        return;
+      }
+
+      doc.addImage(makePieCanvas(chart.data), "PNG", bx, by + 3, imgW, imgH);
+
+      const total = chart.data.reduce((s, [, n]) => s + n, 0);
+      chart.data.forEach(([label, value], i) => {
+        const lx = bx + imgW + 3, ly = by + 9 + i * 8;
+        const [r, g, b] = hexToRgb(PIE_COLORS[i % PIE_COLORS.length]);
+        doc.setFillColor(r, g, b);
+        doc.rect(lx, ly - 3, 3, 3, "F");
+        doc.setFontSize(6.5); doc.setTextColor(60);
+        doc.text(`${label}: ${value} (${Math.round((value / total) * 100)}%)`, lx + 4.5, ly);
+      });
+      doc.setTextColor(0);
+    });
+
     doc.addPage();
     doc.setFontSize(12); doc.text("Emergency Reports", 14, 18);
     autoTable(doc, {
@@ -280,6 +374,7 @@ export default function AdminPage() {
       styles: { fontSize: 8 }, headStyles: { fillColor: [220, 38, 38] },
       columnStyles: { 3: { cellWidth: 50 } },
     });
+
     doc.addPage();
     doc.setFontSize(12); doc.text("Breakdown Reports", 14, 18);
     autoTable(doc, {
@@ -289,6 +384,7 @@ export default function AdminPage() {
       styles: { fontSize: 8 }, headStyles: { fillColor: [5, 150, 105] },
       columnStyles: { 4: { cellWidth: 45 } },
     });
+
     doc.save(`report_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
