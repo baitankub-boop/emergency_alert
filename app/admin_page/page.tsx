@@ -238,13 +238,13 @@ export default function AdminPage() {
   const exportExcel = () => {
     const wb = XLSX.utils.book_new();
     const eData = emergencyRows.map((r, i) => ({
-      "#": i + 1, Timestamp: formatTimestamp(r.created_at),
+      "No.": i + 1, Timestamp: formatTimestamp(r.created_at),
       Floor: displayFloor(r.floor, t), Description: r.description,
       Email: r.email, Status: r.status,
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eData), "Emergency");
     const bData = breakdownRows.map((r, i) => ({
-      "#": i + 1, Timestamp: formatTimestamp(r.created_at), Type: r.breakdown_type,
+      "No.": i + 1, Timestamp: formatTimestamp(r.created_at), Type: r.breakdown_type,
       Floor: displayFloor(r.floor, t), Description: r.description,
       Email: r.email, Status: r.status,
     }));
