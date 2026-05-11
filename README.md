@@ -701,8 +701,8 @@ FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 ### ระบบ
 - ✅ Bilingual UI (TH/EN สลับได้ทันที)
 - ✅ Fully Responsive (mobile · tablet · desktop ทุกหน้า)
-- ✅ Admin dashboard: hamburger menu บน mobile รวม Report / Add Admin / Add Operator / Logout
-- ✅ Admin/Operator Logout ย้ายเป็น dropdown avatar ด้านบนขวา (เหมือน User)
+- ✅ Admin dashboard: ปุ่ม Report / Add Admin / Add Operator เรียง 3 ปุ่ม (ย่อขนาดอัตโนมัติบน mobile)
+- ✅ Admin/Operator Logout ย้ายไปอยู่ใน Navbar hamburger menu และ desktop dropdown (เหมือน User Sign Out)
 - ✅ Navbar ซ่อน user auth บนหน้า Admin/Operator
 - ✅ Auto-redirect เมื่อ session หมด
 - ✅ Status flow: Waiting → In Process → Success/Failed

@@ -7,6 +7,8 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
+import { isAdminSessionValid, clearAdminSession } from "@/lib/adminSession";
+import { isOperatorSessionValid, clearOperatorSession } from "@/lib/operatorSession";
 
 export default function Navbar() {
   const { language, setLanguage, t } = useLanguage();
@@ -15,6 +17,9 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [staffMenuOpen, setStaffMenuOpen] = useState(false);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [isOperatorLoggedIn, setIsOperatorLoggedIn] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -28,11 +33,32 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    setIsAdminLoggedIn(isAdminSessionValid());
+    setIsOperatorLoggedIn(isOperatorSessionValid());
+  }, [pathname]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUserMenuOpen(false);
     setIsMenuOpen(false);
     router.push("/");
+  };
+
+  const handleAdminLogout = () => {
+    clearAdminSession();
+    setIsAdminLoggedIn(false);
+    setStaffMenuOpen(false);
+    setIsMenuOpen(false);
+    router.push("/login_admin");
+  };
+
+  const handleOperatorLogout = () => {
+    clearOperatorSession();
+    setIsOperatorLoggedIn(false);
+    setStaffMenuOpen(false);
+    setIsMenuOpen(false);
+    router.push("/operator_login");
   };
 
   const navItems = [
@@ -148,7 +174,6 @@ export default function Navbar() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-
                 {userMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
                     <div className="px-4 py-3 border-b border-slate-700">
@@ -178,6 +203,41 @@ export default function Navbar() {
                 {t("nav_user_login")}
               </Link>
             ))}
+
+            {/* Admin/Operator Auth — แสดงเมื่ออยู่ในหน้า Admin / Operator */}
+            {isAdminOrOperatorPage && (isAdminLoggedIn || isOperatorLoggedIn) && (
+              <div className="relative">
+                <button
+                  onClick={() => setStaffMenuOpen(v => !v)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-700/60 border border-slate-600/50 text-slate-300 hover:bg-slate-600/60 transition-all duration-200"
+                >
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white ${isAdminLoggedIn ? "bg-blue-500/40" : "bg-indigo-500/40"}`}>
+                    {isAdminLoggedIn ? "A" : "O"}
+                  </div>
+                  <span className="text-xs font-medium">{isAdminLoggedIn ? "Admin" : "Operator"}</span>
+                  <svg className={`w-3 h-3 transition-transform ${staffMenuOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {staffMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-700">
+                      <p className="text-xs text-slate-500">{t("user_logged_in_as")}</p>
+                      <p className="text-sm text-white font-medium">{isAdminLoggedIn ? "Admin" : "Operator"}</p>
+                    </div>
+                    <button
+                      onClick={isAdminLoggedIn ? handleAdminLogout : handleOperatorLogout}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-slate-700/50 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      {t("btn_logout")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -262,14 +322,32 @@ export default function Navbar() {
                 )}
               </div>
             )}
+
+            {/* Admin/Operator logout in mobile menu */}
+            {isAdminOrOperatorPage && (isAdminLoggedIn || isOperatorLoggedIn) && (
+              <div className="mt-1 pt-2 border-t border-slate-700/50">
+                <div className="px-4 py-2">
+                  <p className="text-xs text-slate-500">{t("user_logged_in_as")}</p>
+                  <p className="text-sm text-slate-300">{isAdminLoggedIn ? "Admin" : "Operator"}</p>
+                </div>
+                <button
+                  onClick={isAdminLoggedIn ? handleAdminLogout : handleOperatorLogout}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-slate-700/50 transition-all text-left"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  {t("btn_logout")}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Close user dropdown on outside click */}
-      {userMenuOpen && (
-        <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-      )}
+      {/* Close dropdowns on outside click */}
+      {userMenuOpen && <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />}
+      {staffMenuOpen && <div className="fixed inset-0 z-40" onClick={() => setStaffMenuOpen(false)} />}
     </nav>
   );
 }
