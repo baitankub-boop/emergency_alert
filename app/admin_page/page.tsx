@@ -141,6 +141,8 @@ export default function AdminPage() {
   const [pageBreakdown, setPageBreakdown] = useState(1);
   const ROWS_PER_PAGE = 10;
   const [showReport, setShowReport] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
 
   const fetchEmergency = useCallback(async () => {
     const { data, error } = await supabase
@@ -591,52 +593,132 @@ export default function AdminPage() {
         </div>
       )}
       {/* Top Bar */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 py-4 border-b border-slate-700/50">
-        <div className="container mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-white">{t("admin_dashboard")}</h1>
-            <p className="text-xs text-slate-400">40 Building · KMUTNB</p>
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-16 gap-3">
+            {/* Title */}
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-lg font-bold text-white leading-tight">{t("admin_dashboard")}</h1>
+              <p className="text-xs text-slate-400 hidden sm:block">40 Building · KMUTNB</p>
+            </div>
+
+            {/* Desktop buttons */}
+            <div className="hidden md:flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setShowReport(!showReport)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${showReport ? "bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20" : "bg-slate-700 text-slate-300 border-slate-600/50 hover:bg-slate-600"}`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                {t("btn_show_report")}
+              </button>
+              <button
+                onClick={() => router.push("/add_admin")}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-lg shadow-blue-500/20"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                {t("btn_add_admin")}
+              </button>
+              <button
+                onClick={() => router.push("/add_operator")}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-lg shadow-indigo-500/20"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                {t("btn_add_operator")}
+              </button>
+              {/* Admin account dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setAdminMenuOpen(v => !v)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-700/60 border border-slate-600/50 text-slate-300 hover:bg-slate-600/60 transition-all"
+                >
+                  <div className="w-5 h-5 rounded-full bg-blue-500/40 flex items-center justify-center text-xs font-bold text-white">A</div>
+                  <span className="text-xs font-medium">Admin</span>
+                  <svg className={`w-3 h-3 transition-transform ${adminMenuOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {adminMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-44 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-slate-700/50 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      {t("btn_logout")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile: hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(v => !v)}
+              className="md:hidden p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-all shrink-0"
+              aria-label="Toggle menu"
+            >
+              <div className="w-5 h-4 flex flex-col justify-between">
+                <span className={`block h-0.5 bg-current rounded transition-all duration-300 ${mobileMenuOpen ? "rotate-45 translate-y-1.5" : ""}`} />
+                <span className={`block h-0.5 bg-current rounded transition-all duration-300 ${mobileMenuOpen ? "opacity-0 scale-x-0" : ""}`} />
+                <span className={`block h-0.5 bg-current rounded transition-all duration-300 ${mobileMenuOpen ? "-rotate-45 -translate-y-2.5" : ""}`} />
+              </div>
+            </button>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowReport(!showReport)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${showReport ? "bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20" : "bg-slate-700 text-slate-300 border-slate-600/50 hover:bg-slate-600"}`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              {t("btn_show_report")}
-            </button>
-            <button
-              onClick={() => router.push("/add_admin")}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-lg shadow-blue-500/20"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              {t("btn_add_admin")}
-            </button>
-            <button
-              onClick={() => router.push("/add_operator")}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-lg shadow-indigo-500/20"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              {t("btn_add_operator")}
-            </button>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold transition-all border border-slate-600/50"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              {t("btn_logout")}
-            </button>
-          </div>
+
+          {/* Mobile dropdown */}
+          {mobileMenuOpen && (
+            <div className="md:hidden py-3 border-t border-slate-700/50 flex flex-col gap-1">
+              <button
+                onClick={() => { setShowReport(v => !v); setMobileMenuOpen(false); }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${showReport ? "bg-indigo-600/30 text-indigo-300" : "text-slate-300 hover:bg-slate-700/50"}`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                {t("btn_show_report")}
+              </button>
+              <button
+                onClick={() => { router.push("/add_admin"); setMobileMenuOpen(false); }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition-all text-left"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                {t("btn_add_admin")}
+              </button>
+              <button
+                onClick={() => { router.push("/add_operator"); setMobileMenuOpen(false); }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700/50 transition-all text-left"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                {t("btn_add_operator")}
+              </button>
+              <div className="border-t border-slate-700/50 mt-1 pt-1">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-slate-700/50 transition-all text-left"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  {t("btn_logout")}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+      {adminMenuOpen && <div className="fixed inset-0 z-40" onClick={() => setAdminMenuOpen(false)} />}
 
       <div className="container mx-auto px-4 py-6">
         {/* Stats Grid */}
