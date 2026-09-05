@@ -30,12 +30,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Send email notifications (non-blocking)
+    // Send email notifications
     const timestamp = data?.created_at ? formatTimestamp(data.created_at) : new Date().toLocaleString("th-TH");
     const staffEmails = await getAllStaffEmails();
     const recipients = [...new Set([reporter_email, ...staffEmails])];
     const html = breakdownSubmitHtml(reporter_email, event_type, description, floor, timestamp);
-    sendMail(recipients, "แจ้งเหตุขัดข้อง", html).catch(e => console.error("Email error:", e));
+    try {
+      await sendMail(recipients, "แจ้งเหตุขัดข้อง", html);
+    } catch (e) {
+      console.error("Email error:", e);
+    }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {
