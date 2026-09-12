@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
-import { useAdminSession } from "@/lib/useAdminSession";
+import { useStaffSession } from "@/lib/useStaffSession";
 
 export default function AddOperatorPage() {
   const router = useRouter();
-  useAdminSession();
+  useStaffSession(["admin", "superadmin"]);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -54,7 +54,7 @@ export default function AddOperatorPage() {
   const inputCls = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-400 transition-all";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md animate-fadeInUp">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Card Header */}
@@ -62,7 +62,7 @@ export default function AddOperatorPage() {
             <div className="relative inline-block mb-3">
               <div className="absolute inset-0 bg-indigo-500/20 rounded-full blur-md" />
               <Image
-                src="/KMUTNB_Logo.svg.png"
+                src="/KMUTNB_Logo.png"
                 alt="KMUTNB Logo"
                 width={48}
                 height={48}
@@ -176,7 +176,7 @@ export default function AddOperatorPage() {
               <div className="flex gap-3 pt-1">
                 <button
                   type="button"
-                  onClick={() => router.push("/admin_page")}
+                  onClick={() => router.push("/manage_users")}
                   className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm transition-all"
                 >
                   Back

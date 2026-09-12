@@ -1,17 +1,23 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { useAdminSession } from "@/lib/useAdminSession";
-import { clearAdminSession } from "@/lib/adminSession";
-import { useLanguage } from "@/lib/LanguageContext";
+import { useStaffSession } from "@/lib/useStaffSession";
+import { useLanguage, translate, Language } from "@/lib/LanguageContext";
 import Pagination from "@/components/Pagination";
+import FloorFilterDropdown from "@/components/FloorFilterDropdown";
+import BarChart, { BarChartDatum, BarSeriesDef } from "@/components/BarChart";
+import DateRangeDropdown, { DateRange } from "@/components/DateRangeDropdown";
+import ReportButtonDropdown from "@/components/ReportButtonDropdown";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const EMERGENCY_CANONICAL_TYPES = ["เป็นลม", "อุบัติเหตุร้ายแรง", "ทะเลาะวิวาท", "พบโจร", "โดนล่วงละเมิด", "สัตว์มีพิษกัด"];
+
+const STATUS_KEY: Record<string, string> = {
+  Waiting: "status_waiting", "In Process": "status_in_process", Success: "status_success", Failed: "status_failed",
+};
 
 interface EmergencyRow {
   id: number;
@@ -23,6 +29,7 @@ interface EmergencyRow {
   status: string;
   photo_url: string | null;
   finish_at: string | null;
+  remark: string | null;
 }
 
 interface BreakdownRow {
@@ -35,6 +42,7 @@ interface BreakdownRow {
   status: string;
   photo_url: string | null;
   finish_at: string | null;
+  remark: string | null;
 }
 
 function formatTimestamp(iso: string): string {
@@ -87,6 +95,77 @@ function StatCard({ label, value, color }: { label: string; value: number; color
   );
 }
 
+const ALL_STATUSES = ["Waiting", "In Process", "Success", "Failed"];
+
+function filterByRange<T extends { created_at: string }>(rows: T[], range: DateRange): T[] {
+  if (range === "all") return rows;
+  if (range === "today") {
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    return rows.filter(r => new Date(r.created_at).getTime() >= start.getTime());
+  }
+  const days = range === "7d" ? 7 : 30;
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return rows.filter(r => new Date(r.created_at).getTime() >= cutoff);
+}
+
+function CategoryBarChartCard({ title, data, color, range, setRange, translator, embedded = false }: {
+  title: string;
+  data: BarChartDatum[];
+  color: string;
+  range: DateRange;
+  setRange: (r: DateRange) => void;
+  translator: (k: string) => string;
+  embedded?: boolean;
+}) {
+  return (
+    <div className={embedded ? "p-4" : "p-5"}>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <h3 className={`font-semibold text-slate-800 ${embedded ? "text-xs uppercase tracking-wide text-slate-500" : "text-sm"}`}>{title}</h3>
+        <DateRangeDropdown value={range} onChange={setRange} translator={translator} />
+      </div>
+      <BarChart data={data} series={[{ key: "count", label: title, color }]} emptyLabel={translator("report_no_data")} />
+    </div>
+  );
+}
+
+function StatusCompareChartCard({ data, range, setRange, statuses, setStatuses, translator, embedded = false }: {
+  data: BarChartDatum[];
+  range: DateRange;
+  setRange: (r: DateRange) => void;
+  statuses: string[];
+  setStatuses: (s: string[]) => void;
+  translator: (k: string) => string;
+  embedded?: boolean;
+}) {
+  const series: BarSeriesDef[] = [
+    { key: "emergency", label: translator("btn_emergency"), color: "#ef4444" },
+    { key: "breakdown", label: translator("btn_breakdown"), color: "#10b981" },
+  ];
+  const toggle = (s: string) => setStatuses(statuses.includes(s) ? statuses.filter(x => x !== s) : [...statuses, s]);
+
+  return (
+    <div className={embedded ? "bg-slate-50 rounded-xl p-4 mb-4" : "bg-white rounded-2xl border border-slate-200 shadow-md p-5 mb-6 animate-fadeInUp"}>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+          {ALL_STATUSES.map(s => (
+            <label key={s} className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={statuses.includes(s)}
+                onChange={() => toggle(s)}
+                className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-400 cursor-pointer"
+              />
+              {translator(STATUS_KEY[s])}
+            </label>
+          ))}
+        </div>
+        <DateRangeDropdown value={range} onChange={setRange} translator={translator} />
+      </div>
+      <BarChart data={data} series={series} emptyLabel={translator("report_no_data")} />
+    </div>
+  );
+}
+
 type EditState = {
   table: "emergency" | "breakdown";
   id: number;
@@ -97,6 +176,7 @@ type EditState = {
   email: string;
   status: string;
   original_status: string;
+  remark: string;
 } | null;
 
 const BREAKDOWN_TYPE_KEYS: Record<string, string> = {
@@ -124,9 +204,9 @@ function PencilIcon() {
 type ActiveTab = "emergency" | "breakdown";
 
 export default function AdminPage() {
-  const router = useRouter();
   const { t } = useLanguage();
-  useAdminSession();
+  const role = useStaffSession();
+  const isAdmin = role === "admin" || role === "superadmin";
   const [activeTab, setActiveTab] = useState<ActiveTab>("emergency");
   const [emergencyRows, setEmergencyRows] = useState<EmergencyRow[]>([]);
   const [breakdownRows, setBreakdownRows] = useState<BreakdownRow[]>([]);
@@ -139,13 +219,23 @@ export default function AdminPage() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [pageEmergency, setPageEmergency] = useState(1);
   const [pageBreakdown, setPageBreakdown] = useState(1);
+  const [floorFilterEmergency, setFloorFilterEmergency] = useState("");
+  const [floorFilterBreakdown, setFloorFilterBreakdown] = useState("");
   const ROWS_PER_PAGE = 10;
   const [showReport, setShowReport] = useState(false);
+  const [reportLang, setReportLang] = useState<Language>("en");
+  const [range1, setRange1] = useState<DateRange>("all");
+  const [range2, setRange2] = useState<DateRange>("all");
+  const [range3, setRange3] = useState<DateRange>("all");
+  const [range4, setRange4] = useState<DateRange>("all");
+  const [range5, setRange5] = useState<DateRange>("all");
+  const [chart1Statuses, setChart1Statuses] = useState<string[]>(ALL_STATUSES);
+  const rt = (key: string) => translate(reportLang, key);
 
   const fetchEmergency = useCallback(async () => {
     const { data, error } = await supabase
       .from("emergency_data")
-      .select("id, created_at, emergency_type, floor, description, email, status, photo_url, finish_at")
+      .select("id, created_at, emergency_type, floor, description, email, status, photo_url, finish_at, remark")
       .order("created_at", { ascending: false });
     if (!error && data) setEmergencyRows(data as EmergencyRow[]);
   }, []);
@@ -153,7 +243,7 @@ export default function AdminPage() {
   const fetchBreakdown = useCallback(async () => {
     const { data, error } = await supabase
       .from("breakdown_data")
-      .select("id, created_at, breakdown_type, floor, description, email, status, photo_url, finish_at")
+      .select("id, created_at, breakdown_type, floor, description, email, status, photo_url, finish_at, remark")
       .order("created_at", { ascending: false });
     if (!error && data) setBreakdownRows(data as BreakdownRow[]);
   }, []);
@@ -175,6 +265,7 @@ export default function AdminPage() {
     }).catch(e => console.error("notify error:", e));
   };
 
+  // Admin quick-action: dispatch a waiting report (Waiting -> In Process)
   const acceptEmergency = async (id: number) => {
     setUpdating(id);
     await supabase.from("emergency_data").update({ status: "In Process" }).eq("id", id);
@@ -187,6 +278,25 @@ export default function AdminPage() {
     setUpdating(id);
     await supabase.from("breakdown_data").update({ status: "In Process" }).eq("id", id);
     notifyStatusChange("breakdown_data", id, "Waiting", "In Process");
+    await fetchBreakdown();
+    setUpdating(null);
+  };
+
+  // Operator quick-action: resolve a report (-> Success / Failed)
+  const updateEmergencyStatus = async (id: number, status: string) => {
+    setUpdating(id);
+    const row = emergencyRows.find(r => r.id === id);
+    await supabase.from("emergency_data").update({ status }).eq("id", id);
+    if (row) notifyStatusChange("emergency_data", id, row.status, status);
+    await fetchEmergency();
+    setUpdating(null);
+  };
+
+  const updateBreakdownStatus = async (id: number, status: string) => {
+    setUpdating(id);
+    const row = breakdownRows.find(r => r.id === id);
+    await supabase.from("breakdown_data").update({ status }).eq("id", id);
+    if (row) notifyStatusChange("breakdown_data", id, row.status, status);
     await fetchBreakdown();
     setUpdating(null);
   };
@@ -215,6 +325,7 @@ export default function AdminPage() {
         floor: editState.floor,
         description: editState.description,
         status: editState.status,
+        remark: editState.remark,
       }).eq("id", editState.id);
       await fetchEmergency();
     } else {
@@ -223,6 +334,7 @@ export default function AdminPage() {
         floor: editState.floor,
         description: editState.description,
         status: editState.status,
+        remark: editState.remark,
       }).eq("id", editState.id);
       await fetchBreakdown();
     }
@@ -238,21 +350,21 @@ export default function AdminPage() {
   const exportExcel = () => {
     const wb = XLSX.utils.book_new();
     const eData = emergencyRows.map((r, i) => ({
-      "No.": i + 1, Timestamp: formatTimestamp(r.created_at),
-      Floor: displayFloor(r.floor, t), Description: r.description,
-      Email: r.email, Status: r.status,
+      [rt("th_no")]: i + 1, [rt("th_timestamp")]: formatTimestamp(r.created_at),
+      [rt("th_floor")]: displayFloor(r.floor, rt), [rt("th_description")]: r.description,
+      [rt("th_email")]: r.email, [rt("th_status")]: rt(STATUS_KEY[r.status] ?? r.status),
     }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eData), "Emergency");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eData), rt("btn_emergency").slice(0, 31));
     const bData = breakdownRows.map((r, i) => ({
-      "No.": i + 1, Timestamp: formatTimestamp(r.created_at), Type: r.breakdown_type,
-      Floor: displayFloor(r.floor, t), Description: r.description,
-      Email: r.email, Status: r.status,
+      [rt("th_no")]: i + 1, [rt("th_timestamp")]: formatTimestamp(r.created_at), [rt("th_type")]: r.breakdown_type,
+      [rt("th_floor")]: displayFloor(r.floor, rt), [rt("th_description")]: r.description,
+      [rt("th_email")]: r.email, [rt("th_status")]: rt(STATUS_KEY[r.status] ?? r.status),
     }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bData), "Breakdown");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bData), rt("btn_breakdown").slice(0, 31));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
-      { Type: "Emergency", Waiting: waitingEmergency, "In Process": inProcessEmergency, Success: successEmergency, Failed: failedEmergency, Total: totalEmergency },
-      { Type: "Breakdown", Waiting: waitingBreakdown, "In Process": inProcessBreakdown, Success: successBreakdown, Failed: failedBreakdown, Total: totalBreakdown },
-    ]), "Summary");
+      { [rt("th_type")]: rt("btn_emergency"), [rt("status_waiting")]: waitingEmergency, [rt("status_in_process")]: inProcessEmergency, [rt("status_success")]: successEmergency, [rt("status_failed")]: failedEmergency, [rt("th_total")]: totalEmergency },
+      { [rt("th_type")]: rt("btn_breakdown"), [rt("status_waiting")]: waitingBreakdown, [rt("status_in_process")]: inProcessBreakdown, [rt("status_success")]: successBreakdown, [rt("status_failed")]: failedBreakdown, [rt("th_total")]: totalBreakdown },
+    ]), rt("report_summary_sheet").slice(0, 31));
     XLSX.writeFile(wb, `report_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
@@ -326,6 +438,7 @@ export default function AdminPage() {
       styles: { fontSize: 9 }, headStyles: { fillColor: [30, 41, 59] },
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let y = (doc as any).lastAutoTable.finalY + 12;
     if (y + 130 > 270) { doc.addPage(); y = 14; }
 
@@ -388,11 +501,6 @@ export default function AdminPage() {
     doc.save(`report_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
-  const handleLogout = () => {
-    clearAdminSession();
-    router.push("/login_admin");
-  };
-
   const totalEmergency = emergencyRows.length;
   const totalBreakdown = breakdownRows.length;
   const waitingEmergency = emergencyRows.filter((r) => r.status === "Waiting").length;
@@ -404,39 +512,141 @@ export default function AdminPage() {
   const failedEmergency = emergencyRows.filter((r) => r.status === "Failed").length;
   const failedBreakdown = breakdownRows.filter((r) => r.status === "Failed").length;
 
-  const topFloorsEmergency = Object.entries(
-    emergencyRows.reduce((acc, r) => {
-      const fl = displayFloor(r.floor, t); acc[fl] = (acc[fl] || 0) + 1; return acc;
-    }, {} as Record<string, number>)
-  ).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const buildTopFloors = (rows: { floor: string }[], translator: (k: string) => string) =>
+    Object.entries(
+      rows.reduce((acc, r) => {
+        const fl = displayFloor(r.floor, translator); acc[fl] = (acc[fl] || 0) + 1; return acc;
+      }, {} as Record<string, number>)
+    ).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-  const topFloorsBreakdown = Object.entries(
-    breakdownRows.reduce((acc, r) => {
-      const fl = displayFloor(r.floor, t); acc[fl] = (acc[fl] || 0) + 1; return acc;
-    }, {} as Record<string, number>)
-  ).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const buildTopEmergencyTypes = (rows: EmergencyRow[], translator: (k: string) => string) =>
+    Object.entries(
+      rows.reduce((acc, r) => {
+        if (!r.emergency_type) return acc;
+        const label = displayEmergencyType(r.emergency_type, translator);
+        acc[label] = (acc[label] || 0) + 1; return acc;
+      }, {} as Record<string, number>)
+    ).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-  const topEmergencyTypes = Object.entries(
-    emergencyRows.reduce((acc, r) => {
-      if (!r.emergency_type) return acc;
-      const label = displayEmergencyType(r.emergency_type, t);
-      acc[label] = (acc[label] || 0) + 1; return acc;
-    }, {} as Record<string, number>)
-  ).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const buildTopTypes = (rows: BreakdownRow[]) =>
+    Object.entries(
+      rows.reduce((acc, r) => {
+        acc[r.breakdown_type] = (acc[r.breakdown_type] || 0) + 1; return acc;
+      }, {} as Record<string, number>)
+    ).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-  const topTypes = Object.entries(
-    breakdownRows.reduce((acc, r) => {
-      acc[r.breakdown_type] = (acc[r.breakdown_type] || 0) + 1; return acc;
-    }, {} as Record<string, number>)
-  ).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const topTypes = buildTopTypes(breakdownRows);
 
-  const totalPagesEmergency = Math.max(1, Math.ceil(emergencyRows.length / ROWS_PER_PAGE));
-  const totalPagesBreakdown = Math.max(1, Math.ceil(breakdownRows.length / ROWS_PER_PAGE));
-  const pagedEmergency = emergencyRows.slice((pageEmergency - 1) * ROWS_PER_PAGE, pageEmergency * ROWS_PER_PAGE);
-  const pagedBreakdown = breakdownRows.slice((pageBreakdown - 1) * ROWS_PER_PAGE, pageBreakdown * ROWS_PER_PAGE);
+  const topFloorsEmergencyRpt = buildTopFloors(emergencyRows, rt);
+  const topFloorsBreakdownRpt = buildTopFloors(breakdownRows, rt);
+  const topEmergencyTypesRpt = buildTopEmergencyTypes(emergencyRows, rt);
+
+  const sortFloors = (floors: string[]) => Array.from(new Set(floors)).sort((a, b) => {
+    const na = Number(a), nb = Number(b);
+    const aNum = /^\d+$/.test(a), bNum = /^\d+$/.test(b);
+    if (aNum && bNum) return na - nb;
+    if (aNum !== bNum) return aNum ? -1 : 1;
+    return a.localeCompare(b);
+  });
+
+  const floorOptionsEmergency = sortFloors(emergencyRows.map(r => r.floor));
+  const floorOptionsBreakdown = sortFloors(breakdownRows.map(r => r.floor));
+
+  const buildChart1Data = (translator: (k: string) => string) => {
+    const eRows = filterByRange(emergencyRows, range1);
+    const bRows = filterByRange(breakdownRows, range1);
+    return ALL_STATUSES.filter(s => chart1Statuses.includes(s)).map(status => ({
+      label: translator(STATUS_KEY[status]),
+      emergency: eRows.filter(r => r.status === status).length,
+      breakdown: bRows.filter(r => r.status === status).length,
+    }));
+  };
+
+  const buildChart2Data = (translator: (k: string) => string) => {
+    const rows = filterByRange(breakdownRows, range2);
+    return sortFloors(rows.map(r => r.floor)).map(floor => ({
+      label: displayFloor(floor, translator),
+      count: rows.filter(r => r.floor === floor).length,
+    }));
+  };
+
+  const buildChart3Data = () => {
+    const rows = filterByRange(breakdownRows, range3);
+    const types = Array.from(new Set(rows.map(r => r.breakdown_type).filter(Boolean)));
+    return types.map(tp => ({ label: tp, count: rows.filter(r => r.breakdown_type === tp).length }));
+  };
+
+  const buildChart4Data = (translator: (k: string) => string) => {
+    const rows = filterByRange(emergencyRows, range4);
+    return sortFloors(rows.map(r => r.floor)).map(floor => ({
+      label: displayFloor(floor, translator),
+      count: rows.filter(r => r.floor === floor).length,
+    }));
+  };
+
+  const buildChart5Data = (translator: (k: string) => string) => {
+    const rows = filterByRange(emergencyRows, range5);
+    const types = Array.from(new Set(rows.map(r => r.emergency_type).filter(Boolean)));
+    return types.map(tp => ({ label: displayEmergencyType(tp, translator), count: rows.filter(r => r.emergency_type === tp).length }));
+  };
+
+  const filteredEmergencyRows = floorFilterEmergency ? emergencyRows.filter(r => r.floor === floorFilterEmergency) : emergencyRows;
+  const filteredBreakdownRows = floorFilterBreakdown ? breakdownRows.filter(r => r.floor === floorFilterBreakdown) : breakdownRows;
+
+  const totalPagesEmergency = Math.max(1, Math.ceil(filteredEmergencyRows.length / ROWS_PER_PAGE));
+  const totalPagesBreakdown = Math.max(1, Math.ceil(filteredBreakdownRows.length / ROWS_PER_PAGE));
+  const pagedEmergency = filteredEmergencyRows.slice((pageEmergency - 1) * ROWS_PER_PAGE, pageEmergency * ROWS_PER_PAGE);
+  const pagedBreakdown = filteredBreakdownRows.slice((pageBreakdown - 1) * ROWS_PER_PAGE, pageBreakdown * ROWS_PER_PAGE);
 
   const thCls = "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap";
   const tdCls = "px-4 py-3 text-sm text-slate-700";
+
+  // Column counts for loading/empty colSpan — mirrors which <th> are actually rendered below
+  const emergencyCols = (isAdmin ? 11 : 10) + 1; // no,timestamp,type,floor,description,[email],photo,status,finished,action,edit,remark
+  const breakdownCols = (isAdmin ? 11 : 9) + 1; // admin: no,timestamp,type,floor,description,email,photo,status,finished,action,edit,remark — operator: no,timestamp,floor,description,photo,status,finished,action,edit,remark
+
+  function OperatorActionButtons({ id, currentStatus, onUpdate }: {
+    id: number;
+    currentStatus: string;
+    onUpdate: (id: number, status: string) => void;
+  }) {
+    const isUpdating = updating === id;
+    const isFinalized = currentStatus === "Success" || currentStatus === "Failed";
+
+    if (isFinalized) {
+      return <span className="text-slate-300 text-sm">—</span>;
+    }
+
+    if (isUpdating) {
+      return (
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-400 text-xs font-medium border border-slate-200">
+          <span className="w-2.5 h-2.5 border border-slate-300 border-t-indigo-400 rounded-full animate-spin-smooth" />
+          {t("updating")}
+        </div>
+      );
+    }
+
+    return (
+      <div className="inline-flex items-center gap-1.5">
+        <button
+          onClick={() => onUpdate(id, "Success")}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition-all duration-150"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          {t("status_success")}
+        </button>
+        <button
+          onClick={() => onUpdate(id, "Failed")}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 hover:border-red-300 transition-all duration-150"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+          {t("status_failed")}
+        </button>
+      </div>
+    );
+  }
+
+  if (!role) return null;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -529,6 +739,10 @@ export default function AdminPage() {
                     <option value="Failed">{t("status_failed")}</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("th_remark")}</label>
+                  <textarea rows={3} className={iCls} placeholder={t("remark_placeholder")} value={editState.remark} onChange={e => setEditState({ ...editState, remark: e.target.value })} />
+                </div>
                 <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-100 mt-2">
                   {/* Delete button with inline confirmation */}
                   {!confirmingDelete ? (
@@ -590,43 +804,27 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
       {/* Top Bar */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50">
+      <div className="bg-white border-b border-slate-100">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
             <div className="min-w-0 flex-1">
-              <h1 className="text-sm sm:text-base font-bold text-white leading-tight truncate">{t("admin_dashboard")}</h1>
+              <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">
+                {t(isAdmin ? "admin_dashboard" : "operator_dashboard")}
+              </h1>
               <p className="text-xs text-slate-400 hidden sm:block">40 Building · KMUTNB</p>
             </div>
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              <button
-                onClick={() => setShowReport(!showReport)}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition-all border ${showReport ? "bg-indigo-600 text-white border-indigo-600" : "bg-slate-700 text-slate-300 border-slate-600/50 hover:bg-slate-600"}`}
-              >
-                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <span className="whitespace-nowrap">{t("btn_show_report")}</span>
-              </button>
-              <button
-                onClick={() => router.push("/add_admin")}
-                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] sm:text-xs font-semibold transition-all"
-              >
-                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                <span className="whitespace-nowrap">{t("btn_add_admin")}</span>
-              </button>
-              <button
-                onClick={() => router.push("/add_operator")}
-                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] sm:text-xs font-semibold transition-all"
-              >
-                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                <span className="whitespace-nowrap">{t("btn_add_operator")}</span>
-              </button>
-            </div>
+            {isAdmin && (
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                <ReportButtonDropdown
+                  active={showReport}
+                  onClose={() => setShowReport(false)}
+                  onSelect={(lang) => { setReportLang(lang); setShowReport(true); }}
+                  label={t("btn_show_report")}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -636,19 +834,52 @@ export default function AdminPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 animate-fadeInUp">
           <StatCard label={t("stat_total_emergency")} value={totalEmergency} color="border-red-500" />
           <StatCard label={t("stat_total_breakdown")} value={totalBreakdown} color="border-emerald-500" />
-          <StatCard label={t("stat_waiting_emergency")} value={waitingEmergency} color="border-amber-400" />
-          <StatCard label={t("stat_waiting_breakdown")} value={waitingBreakdown} color="border-amber-400" />
-          <StatCard label={t("stat_in_process_emergency")} value={inProcessEmergency} color="border-blue-500" />
-          <StatCard label={t("stat_in_process_breakdown")} value={inProcessBreakdown} color="border-blue-500" />
+          {isAdmin ? (
+            <>
+              <StatCard label={t("stat_waiting_emergency")} value={waitingEmergency} color="border-amber-400" />
+              <StatCard label={t("stat_waiting_breakdown")} value={waitingBreakdown} color="border-amber-400" />
+              <StatCard label={t("stat_in_process_emergency")} value={inProcessEmergency} color="border-blue-500" />
+              <StatCard label={t("stat_in_process_breakdown")} value={inProcessBreakdown} color="border-blue-500" />
+            </>
+          ) : (
+            <>
+              <StatCard label={t("stat_in_process_emergency")} value={inProcessEmergency} color="border-blue-500" />
+              <StatCard label={t("stat_in_process_breakdown")} value={inProcessBreakdown} color="border-blue-500" />
+              <StatCard label={t("stat_success_emergency")} value={successEmergency} color="border-emerald-400" />
+              <StatCard label={t("stat_success_breakdown")} value={successBreakdown} color="border-emerald-400" />
+            </>
+          )}
         </div>
 
-        {/* Report Section */}
-        {showReport && (() => {
+        {/* Incident Bar Charts — always visible */}
+        <StatusCompareChartCard
+          data={buildChart1Data(t)}
+          range={range1}
+          setRange={setRange1}
+          statuses={chart1Statuses}
+          setStatuses={setChart1Statuses}
+          translator={t}
+        />
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-md mb-6 animate-fadeInUp">
+          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+            <CategoryBarChartCard title={t("chart2_title")} data={buildChart2Data(t)} color="#10b981" range={range2} setRange={setRange2} translator={t} />
+            <CategoryBarChartCard title={t("chart3_title")} data={buildChart3Data()} color="#10b981" range={range3} setRange={setRange3} translator={t} />
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-md mb-6 animate-fadeInUp">
+          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+            <CategoryBarChartCard title={t("chart4_title")} data={buildChart4Data(t)} color="#ef4444" range={range4} setRange={setRange4} translator={t} />
+            <CategoryBarChartCard title={t("chart5_title")} data={buildChart5Data(t)} color="#ef4444" range={range5} setRange={setRange5} translator={t} />
+          </div>
+        </div>
+
+        {/* Report Section — admin only */}
+        {isAdmin && showReport && (() => {
           const pct = (n: number, total: number) => total === 0 ? 0 : Math.round((n / total) * 100);
           const PIE_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6"];
           const PieChart = ({ data, colors }: { data: [string, number][]; colors: string[] }) => {
             const total = data.reduce((s, [, n]) => s + n, 0);
-            if (total === 0 || data.length === 0) return <p className="text-xs text-slate-400">{t("report_no_data")}</p>;
+            if (total === 0 || data.length === 0) return <p className="text-xs text-slate-400">{rt("report_no_data")}</p>;
             const cx = 50, cy = 50, r = 45;
             if (data.length === 1) return (
               <div className="flex items-start gap-3">
@@ -713,43 +944,76 @@ export default function AdminPage() {
             </div>
           );
           return (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6 animate-fadeInUp">
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowReport(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto custom-scroll animate-fadeInUp" onClick={e => e.stopPropagation()}>
+              <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-5 sm:p-5 py-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                   <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
-                  {t("report_title")}
+                  {rt("report_title")}
                 </h2>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setReportLang(reportLang === "th" ? "en" : "th")} title={t("btn_change_language")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold transition-all">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
+                    {reportLang === "th" ? "TH" : "EN"}
+                  </button>
                   <button onClick={exportExcel} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all shadow-sm shadow-emerald-500/20">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    {t("btn_export_excel")}
+                    {rt("btn_export_excel")}
                   </button>
                   <button onClick={exportPDF} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-all shadow-sm shadow-red-500/20">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    {t("btn_export_pdf")}
+                    {rt("btn_export_pdf")}
                   </button>
+                  <button onClick={() => setShowReport(false)} title={t("btn_close")} className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-5">
+              <StatusCompareChartCard
+                data={buildChart1Data(rt)}
+                range={range1}
+                setRange={setRange1}
+                statuses={chart1Statuses}
+                setStatuses={setChart1Statuses}
+                translator={rt}
+                embedded
+              />
+              <div className="bg-slate-50 rounded-xl mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+                  <CategoryBarChartCard title={rt("chart2_title")} data={buildChart2Data(rt)} color="#10b981" range={range2} setRange={setRange2} translator={rt} embedded />
+                  <CategoryBarChartCard title={rt("chart3_title")} data={buildChart3Data()} color="#10b981" range={range3} setRange={setRange3} translator={rt} embedded />
+                </div>
+              </div>
+              <div className="bg-slate-50 rounded-xl mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+                  <CategoryBarChartCard title={rt("chart4_title")} data={buildChart4Data(rt)} color="#ef4444" range={range4} setRange={setRange4} translator={rt} embedded />
+                  <CategoryBarChartCard title={rt("chart5_title")} data={buildChart5Data(rt)} color="#ef4444" range={range5} setRange={setRange5} translator={rt} embedded />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t("report_emergency_stats")}</p>
-                  {totalEmergency === 0 ? <p className="text-xs text-slate-400">{t("report_no_data")}</p> : <>
-                    <StatusBar label={t("status_waiting")} count={waitingEmergency} total={totalEmergency} color="bg-amber-400" />
-                    <StatusBar label={t("status_in_process")} count={inProcessEmergency} total={totalEmergency} color="bg-blue-400" />
-                    <StatusBar label={t("status_success")} count={successEmergency} total={totalEmergency} color="bg-emerald-500" />
-                    <StatusBar label={t("status_failed")} count={failedEmergency} total={totalEmergency} color="bg-red-500" />
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{rt("report_emergency_stats")}</p>
+                  {totalEmergency === 0 ? <p className="text-xs text-slate-400">{rt("report_no_data")}</p> : <>
+                    <StatusBar label={rt("status_waiting")} count={waitingEmergency} total={totalEmergency} color="bg-amber-400" />
+                    <StatusBar label={rt("status_in_process")} count={inProcessEmergency} total={totalEmergency} color="bg-blue-400" />
+                    <StatusBar label={rt("status_success")} count={successEmergency} total={totalEmergency} color="bg-emerald-500" />
+                    <StatusBar label={rt("status_failed")} count={failedEmergency} total={totalEmergency} color="bg-red-500" />
                   </>}
                 </div>
                 <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t("report_breakdown_stats")}</p>
-                  {totalBreakdown === 0 ? <p className="text-xs text-slate-400">{t("report_no_data")}</p> : <>
-                    <StatusBar label={t("status_waiting")} count={waitingBreakdown} total={totalBreakdown} color="bg-amber-400" />
-                    <StatusBar label={t("status_in_process")} count={inProcessBreakdown} total={totalBreakdown} color="bg-blue-400" />
-                    <StatusBar label={t("status_success")} count={successBreakdown} total={totalBreakdown} color="bg-emerald-500" />
-                    <StatusBar label={t("status_failed")} count={failedBreakdown} total={totalBreakdown} color="bg-red-500" />
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{rt("report_breakdown_stats")}</p>
+                  {totalBreakdown === 0 ? <p className="text-xs text-slate-400">{rt("report_no_data")}</p> : <>
+                    <StatusBar label={rt("status_waiting")} count={waitingBreakdown} total={totalBreakdown} color="bg-amber-400" />
+                    <StatusBar label={rt("status_in_process")} count={inProcessBreakdown} total={totalBreakdown} color="bg-blue-400" />
+                    <StatusBar label={rt("status_success")} count={successBreakdown} total={totalBreakdown} color="bg-emerald-500" />
+                    <StatusBar label={rt("status_failed")} count={failedBreakdown} total={totalBreakdown} color="bg-red-500" />
                   </>}
                 </div>
               </div>
@@ -757,25 +1021,27 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Pie charts for floors */}
                 <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t("report_top_floors_emergency")}</p>
-                  <PieChart data={topFloorsEmergency} colors={PIE_COLORS} />
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{rt("report_top_floors_emergency")}</p>
+                  <PieChart data={topFloorsEmergencyRpt} colors={PIE_COLORS} />
                 </div>
                 <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t("report_top_floors_breakdown")}</p>
-                  <PieChart data={topFloorsBreakdown} colors={PIE_COLORS} />
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{rt("report_top_floors_breakdown")}</p>
+                  <PieChart data={topFloorsBreakdownRpt} colors={PIE_COLORS} />
                 </div>
                 {/* Bar charts for types */}
                 <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t("report_top_emergency_types")}</p>
-                  {topEmergencyTypes.length === 0 ? <p className="text-xs text-slate-400">{t("report_no_data")}</p>
-                    : topEmergencyTypes.map(([tp, cnt]) => <TopBar key={tp} label={tp} count={cnt} max={topEmergencyTypes[0][1]} />)}
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{rt("report_top_emergency_types")}</p>
+                  {topEmergencyTypesRpt.length === 0 ? <p className="text-xs text-slate-400">{rt("report_no_data")}</p>
+                    : topEmergencyTypesRpt.map(([tp, cnt]) => <TopBar key={tp} label={tp} count={cnt} max={topEmergencyTypesRpt[0][1]} />)}
                 </div>
                 <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t("report_top_types")}</p>
-                  {topTypes.length === 0 ? <p className="text-xs text-slate-400">{t("report_no_data")}</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{rt("report_top_types")}</p>
+                  {topTypes.length === 0 ? <p className="text-xs text-slate-400">{rt("report_no_data")}</p>
                     : topTypes.map(([tp, cnt]) => <TopBar key={tp} label={tp} count={cnt} max={topTypes[0][1]} />)}
                 </div>
               </div>
+              </div>
+            </div>
             </div>
           );
         })()}
@@ -786,29 +1052,21 @@ export default function AdminPage() {
             onClick={() => { setActiveTab("emergency"); setPageEmergency(1); }}
             className={`px-6 py-2.5 rounded-t-xl text-sm font-medium transition-all duration-200 ${
               activeTab === "emergency"
-                ? "bg-white text-red-600 border-t border-x border-slate-200 shadow-sm font-semibold"
+                ? `bg-white ${isAdmin ? "text-red-600" : "text-indigo-600"} border-t border-x border-slate-200 shadow-sm font-semibold`
                 : "bg-slate-200/70 text-slate-500 hover:text-slate-700 hover:bg-slate-200"
             }`}
           >
-            {t("tab_emergency")} {waitingEmergency > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-xs leading-none font-bold">
-                {waitingEmergency}
-              </span>
-            )}
+            {t("tab_emergency")}
           </button>
           <button
             onClick={() => { setActiveTab("breakdown"); setPageBreakdown(1); }}
             className={`px-6 py-2.5 rounded-t-xl text-sm font-medium transition-all duration-200 ${
               activeTab === "breakdown"
-                ? "bg-white text-emerald-600 border-t border-x border-slate-200 shadow-sm font-semibold"
+                ? `bg-white ${isAdmin ? "text-emerald-600" : "text-indigo-600"} border-t border-x border-slate-200 shadow-sm font-semibold`
                 : "bg-slate-200/70 text-slate-500 hover:text-slate-700 hover:bg-slate-200"
             }`}
           >
-            {t("tab_breakdown")} {waitingBreakdown > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white text-xs leading-none font-bold">
-                {waitingBreakdown}
-              </span>
-            )}
+            {t("tab_breakdown")}
           </button>
         </div>
 
@@ -824,20 +1082,31 @@ export default function AdminPage() {
                     <th className={thCls}>{t("th_no")}</th>
                     <th className={thCls}>{t("th_timestamp")}</th>
                     <th className={thCls}>{t("emergency_type_label")}</th>
-                    <th className={thCls}>{t("th_floor")}</th>
+                    <th className={thCls}>
+                      <div className="flex items-center gap-1.5">
+                        <span>{t("th_floor")}</span>
+                        <FloorFilterDropdown
+                          floors={floorOptionsEmergency}
+                          value={floorFilterEmergency}
+                          onChange={f => { setFloorFilterEmergency(f); setPageEmergency(1); }}
+                          displayFloor={f => displayFloor(f, t)}
+                        />
+                      </div>
+                    </th>
                     <th className={thCls}>{t("th_description")}</th>
-                    <th className={thCls}>{t("th_email")}</th>
+                    {isAdmin && <th className={thCls}>{t("th_email")}</th>}
                     <th className={thCls}>{t("th_photo")}</th>
                     <th className={thCls}>{t("th_status")}</th>
                     <th className={thCls}>{t("th_finished_at")}</th>
                     <th className={thCls}>{t("th_action")}</th>
+                    <th className={thCls}>{t("th_remark")}</th>
                     <th className={thCls}></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading && (
                     <tr>
-                      <td colSpan={11} className="py-16 text-center">
+                      <td colSpan={emergencyCols} className="py-16 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <div className="w-7 h-7 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin-smooth" />
                           <span className="text-sm text-slate-400">{t("loading")}</span>
@@ -845,9 +1114,9 @@ export default function AdminPage() {
                       </td>
                     </tr>
                   )}
-                  {!loading && emergencyRows.length === 0 && (
+                  {!loading && filteredEmergencyRows.length === 0 && (
                     <tr>
-                      <td colSpan={11} className="py-16 text-center text-sm text-slate-400">{t("no_records")}</td>
+                      <td colSpan={emergencyCols} className="py-16 text-center text-sm text-slate-400">{t("no_records")}</td>
                     </tr>
                   )}
                   {!loading && pagedEmergency.map((r, idx) => (
@@ -861,7 +1130,7 @@ export default function AdminPage() {
                       <td className={`${tdCls} max-w-xs`}>
                         <span className="line-clamp-2">{r.description}</span>
                       </td>
-                      <td className={`${tdCls} text-xs text-slate-500`}>{r.email}</td>
+                      {isAdmin && <td className={`${tdCls} text-xs text-slate-500`}>{r.email}</td>}
                       <td className={tdCls}>
                         {r.photo_url ? (
                           <button
@@ -882,26 +1151,33 @@ export default function AdminPage() {
                         {r.finish_at ? formatTimestamp(r.finish_at) : <span className="text-slate-300">—</span>}
                       </td>
                       <td className={tdCls}>
-                        {r.status === "Waiting" ? (
-                          <button
-                            onClick={() => acceptEmergency(r.id)}
-                            disabled={updating === r.id}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all disabled:opacity-50 shadow-sm"
-                          >
-                            {updating === r.id ? (
-                              <span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin-smooth" />
-                            ) : null}
-                            {updating === r.id ? "..." : t("btn_accept")}
-                          </button>
+                        {isAdmin ? (
+                          r.status === "Waiting" ? (
+                            <button
+                              onClick={() => acceptEmergency(r.id)}
+                              disabled={updating === r.id}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all disabled:opacity-50 shadow-sm"
+                            >
+                              {updating === r.id ? (
+                                <span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin-smooth" />
+                              ) : null}
+                              {updating === r.id ? "..." : t("btn_accept")}
+                            </button>
+                          ) : (
+                            <span className="text-slate-300 text-sm">—</span>
+                          )
                         ) : (
-                          <span className="text-slate-300 text-sm">—</span>
+                          <OperatorActionButtons id={r.id} currentStatus={r.status} onUpdate={updateEmergencyStatus} />
                         )}
+                      </td>
+                      <td className={`${tdCls} max-w-xs`}>
+                        {r.remark ? <span className="line-clamp-2">{r.remark}</span> : <span className="text-slate-300">—</span>}
                       </td>
                       <td className={tdCls}>
                         <button
                           onClick={() => {
                             const isPredefinedE = EMERGENCY_CANONICAL_TYPES.includes(r.emergency_type || "");
-                            setEditState({ table: "emergency", id: r.id, floor: r.floor, description: r.description, event_type: isPredefinedE ? (r.emergency_type || "") : (r.emergency_type ? "other" : ""), other_type: isPredefinedE ? "" : (r.emergency_type || ""), email: r.email, status: r.status, original_status: r.status });
+                            setEditState({ table: "emergency", id: r.id, floor: r.floor, description: r.description, event_type: isPredefinedE ? (r.emergency_type || "") : (r.emergency_type ? "other" : ""), other_type: isPredefinedE ? "" : (r.emergency_type || ""), email: r.email, status: r.status, original_status: r.status, remark: r.remark ?? "" });
                           }}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
                           title="แก้ไข"
@@ -925,21 +1201,32 @@ export default function AdminPage() {
                   <tr>
                     <th className={thCls}>{t("th_no")}</th>
                     <th className={thCls}>{t("th_timestamp")}</th>
-                    <th className={thCls}>{t("th_type")}</th>
-                    <th className={thCls}>{t("th_floor")}</th>
+                    {isAdmin && <th className={thCls}>{t("th_type")}</th>}
+                    <th className={thCls}>
+                      <div className="flex items-center gap-1.5">
+                        <span>{t("th_floor")}</span>
+                        <FloorFilterDropdown
+                          floors={floorOptionsBreakdown}
+                          value={floorFilterBreakdown}
+                          onChange={f => { setFloorFilterBreakdown(f); setPageBreakdown(1); }}
+                          displayFloor={f => displayFloor(f, t)}
+                        />
+                      </div>
+                    </th>
                     <th className={thCls}>{t("th_description")}</th>
-                    <th className={thCls}>{t("th_email")}</th>
+                    {isAdmin && <th className={thCls}>{t("th_email")}</th>}
                     <th className={thCls}>{t("th_photo")}</th>
                     <th className={thCls}>{t("th_status")}</th>
                     <th className={thCls}>{t("th_finished_at")}</th>
                     <th className={thCls}>{t("th_action")}</th>
+                    <th className={thCls}>{t("th_remark")}</th>
                     <th className={thCls}></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading && (
                     <tr>
-                      <td colSpan={11} className="py-16 text-center">
+                      <td colSpan={breakdownCols} className="py-16 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <div className="w-7 h-7 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin-smooth" />
                           <span className="text-sm text-slate-400">{t("loading")}</span>
@@ -947,23 +1234,25 @@ export default function AdminPage() {
                       </td>
                     </tr>
                   )}
-                  {!loading && breakdownRows.length === 0 && (
+                  {!loading && filteredBreakdownRows.length === 0 && (
                     <tr>
-                      <td colSpan={11} className="py-16 text-center text-sm text-slate-400">{t("no_records")}</td>
+                      <td colSpan={breakdownCols} className="py-16 text-center text-sm text-slate-400">{t("no_records")}</td>
                     </tr>
                   )}
                   {!loading && pagedBreakdown.map((r, idx) => (
                     <tr key={r.id} className="hover:bg-slate-50 transition-colors duration-100">
                       <td className={`${tdCls} text-slate-400 w-10`}>{(pageBreakdown - 1) * ROWS_PER_PAGE + idx + 1}</td>
                       <td className={`${tdCls} font-mono text-xs text-slate-500 whitespace-nowrap`}>{formatTimestamp(r.created_at)}</td>
-                      <td className={tdCls}>
-                        <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">{r.breakdown_type}</span>
-                      </td>
+                      {isAdmin && (
+                        <td className={tdCls}>
+                          <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">{r.breakdown_type}</span>
+                        </td>
+                      )}
                       <td className={`${tdCls} font-medium whitespace-nowrap`}>{displayFloor(r.floor, t)}</td>
                       <td className={`${tdCls} max-w-xs`}>
                         <span className="line-clamp-2">{r.description}</span>
                       </td>
-                      <td className={`${tdCls} text-xs text-slate-500`}>{r.email}</td>
+                      {isAdmin && <td className={`${tdCls} text-xs text-slate-500`}>{r.email}</td>}
                       <td className={tdCls}>
                         {r.photo_url ? (
                           <button
@@ -984,27 +1273,34 @@ export default function AdminPage() {
                         {r.finish_at ? formatTimestamp(r.finish_at) : <span className="text-slate-300">—</span>}
                       </td>
                       <td className={tdCls}>
-                        {r.status === "Waiting" ? (
-                          <button
-                            onClick={() => acceptBreakdown(r.id)}
-                            disabled={updating === r.id}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all disabled:opacity-50 shadow-sm"
-                          >
-                            {updating === r.id ? (
-                              <span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin-smooth" />
-                            ) : null}
-                            {updating === r.id ? "..." : t("btn_accept")}
-                          </button>
+                        {isAdmin ? (
+                          r.status === "Waiting" ? (
+                            <button
+                              onClick={() => acceptBreakdown(r.id)}
+                              disabled={updating === r.id}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all disabled:opacity-50 shadow-sm"
+                            >
+                              {updating === r.id ? (
+                                <span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin-smooth" />
+                              ) : null}
+                              {updating === r.id ? "..." : t("btn_accept")}
+                            </button>
+                          ) : (
+                            <span className="text-slate-300 text-sm">—</span>
+                          )
                         ) : (
-                          <span className="text-slate-300 text-sm">—</span>
+                          <OperatorActionButtons id={r.id} currentStatus={r.status} onUpdate={updateBreakdownStatus} />
                         )}
+                      </td>
+                      <td className={`${tdCls} max-w-xs`}>
+                        {r.remark ? <span className="line-clamp-2">{r.remark}</span> : <span className="text-slate-300">—</span>}
                       </td>
                       <td className={tdCls}>
                         <button
                           onClick={() => {
                             const normalizedKey = BREAKDOWN_TYPE_KEYS[r.breakdown_type];
                             const normalized = normalizedKey ? t(normalizedKey) : null;
-                            setEditState({ table: "breakdown", id: r.id, floor: r.floor, description: r.description, event_type: normalized ?? (PREDEFINED_TYPES.includes(r.breakdown_type) ? r.breakdown_type : "other"), other_type: normalized ? "" : (PREDEFINED_TYPES.includes(r.breakdown_type) ? "" : r.breakdown_type), email: r.email, status: r.status, original_status: r.status });
+                            setEditState({ table: "breakdown", id: r.id, floor: r.floor, description: r.description, event_type: normalized ?? (PREDEFINED_TYPES.includes(r.breakdown_type) ? r.breakdown_type : "other"), other_type: normalized ? "" : (PREDEFINED_TYPES.includes(r.breakdown_type) ? "" : r.breakdown_type), email: r.email, status: r.status, original_status: r.status, remark: r.remark ?? "" });
                           }}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
                           title="แก้ไข"

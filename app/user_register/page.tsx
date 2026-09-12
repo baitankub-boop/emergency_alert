@@ -52,17 +52,17 @@ export default function UserRegisterPage() {
   };
 
   const inputCls =
-    "w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all duration-200";
+    "w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-red-400/50 focus:border-red-400 transition-all duration-200";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-          <Image src="/KMUTNB_Logo.svg.png" alt="KMUTNB" width={64} height={64} className="drop-shadow-xl" />
+          <Image src="/KMUTNB_Logo.png" alt="KMUTNB" width={64} height={64} className="drop-shadow-sm" />
         </div>
 
-        <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
-          <h1 className="text-2xl font-bold text-white text-center mb-2">
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+          <h1 className="text-2xl font-bold text-slate-900 text-center mb-2">
             {t("auth_register_title")}
           </h1>
           <p className="text-slate-400 text-sm text-center mb-8">
@@ -71,13 +71,13 @@ export default function UserRegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
                 {error}
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 {t("auth_email")} <span className="text-red-500">*</span>
               </label>
               <input
@@ -91,7 +91,7 @@ export default function UserRegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 {t("auth_password")} <span className="text-red-500">*</span>
               </label>
               <input
@@ -102,11 +102,11 @@ export default function UserRegisterPage() {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
               />
-              <p className="text-xs text-slate-500 mt-1">{t("auth_password_hint")}</p>
+              <p className="text-xs text-slate-400 mt-1">{t("auth_password_hint")}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 {t("auth_confirm_password")} <span className="text-red-500">*</span>
               </label>
               <input
@@ -137,7 +137,7 @@ export default function UserRegisterPage() {
 
           <p className="text-center text-slate-400 text-sm mt-6">
             {t("auth_have_account")}{" "}
-            <Link href="/user_login" className="text-red-400 hover:text-red-300 font-medium transition-colors">
+            <Link href="/user_login" className="text-red-600 hover:text-red-700 font-medium transition-colors">
               {t("auth_login_link")}
             </Link>
           </p>

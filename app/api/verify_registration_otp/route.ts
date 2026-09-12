@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
+import { requireStaff } from "@/lib/staffAuth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,6 +25,18 @@ export async function POST(req: NextRequest) {
 
     if (!email || !otp || !type) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // Only staff may finalize creation of another staff account, and only a
+    // Super Admin may create another Super Admin.
+    if (type === "superadmin") {
+      if (!requireStaff(req, "superadmin")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    } else if (type === "admin" || type === "operator") {
+      if (!requireStaff(req, ["admin", "superadmin"])) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
     }
 
     // Look up OTP record
@@ -64,10 +77,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: authError.message }, { status: 500 });
       }
     } else {
-      // Create admin or operator in custom table
+      // Create admin, operator, or superadmin in the matching custom table
       const { first_name, last_name } = data.pending_data;
-      const table = type === "admin" ? "admin_data" : "operator_data";
-      const { error: insertError } = await supabase.from(table).insert({
+      const table = type === "admin" ? "admin_data" : type === "operator" ? "operator_data" : "superadmin_data";
+      const { error: insertError } = await supabaseAdmin.from(table).insert({
         first_name,
         last_name,
         email: pendingEmail,

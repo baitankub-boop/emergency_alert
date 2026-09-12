@@ -68,7 +68,7 @@ function OtpContent() {
         setOtp(["", "", "", "", "", ""]);
         inputRefs.current[0]?.focus();
       } else {
-        router.replace(type === "user" ? "/user_login" : "/admin_page");
+        router.replace(type === "user" ? "/user_login" : "/manage_users");
       }
     } catch {
       setError("Network error. Please try again.");
@@ -104,17 +104,17 @@ function OtpContent() {
     }
   };
 
-  const roleLabel = type === "admin" ? "Admin" : "Operator";
+  const roleLabel = type === "admin" ? "Admin" : type === "superadmin" ? "Super Admin" : "Operator";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md animate-fadeInUp">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-8 py-6 text-center">
             <div className="relative inline-block mb-3">
               <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-md" />
-              <Image src="/KMUTNB_Logo.svg.png" alt="KMUTNB" width={48} height={48} className="h-12 w-auto relative" />
+              <Image src="/KMUTNB_Logo.png" alt="KMUTNB" width={48} height={48} className="h-12 w-auto relative" />
             </div>
             <h2 className="text-lg font-bold text-white">Verify OTP</h2>
             <p className="text-slate-400 text-xs mt-0.5">40 Building alarm OTP · {roleLabel} Registration</p>
@@ -198,8 +198,8 @@ function OtpContent() {
 export default function VerifyRegistrationOtpPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin" />
       </div>
     }>
       <OtpContent />

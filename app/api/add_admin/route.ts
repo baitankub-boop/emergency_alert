@@ -1,10 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { scryptSync, randomBytes } from "crypto";
+import { requireStaff } from "@/lib/staffAuth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SECRET_KEY!
 );
 
 function hashPassword(password: string): string {
@@ -14,6 +15,9 @@ function hashPassword(password: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  if (!requireStaff(req, ["admin", "superadmin"])) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { first_name, last_name, email, password } = await req.json();
 

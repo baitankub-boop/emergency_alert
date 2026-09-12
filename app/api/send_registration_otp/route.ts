@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { createHash, randomBytes, scryptSync } from "crypto";
 import nodemailer from "nodemailer";
+import { requireStaff } from "@/lib/staffAuth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,12 +31,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    if (!["admin", "operator", "user"].includes(type)) {
+    if (!["admin", "operator", "superadmin", "user"].includes(type)) {
       return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
 
     if (type !== "user" && (!first_name || !last_name)) {
       return NextResponse.json({ error: "Missing name fields" }, { status: 400 });
+    }
+
+    // Only staff may request creation of another staff account, and only a
+    // Super Admin may create another Super Admin.
+    if (type === "superadmin") {
+      if (!requireStaff(req, "superadmin")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    } else if (type === "admin" || type === "operator") {
+      if (!requireStaff(req, ["admin", "superadmin"])) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
     }
 
     // For admin/operator: hash password with scrypt
@@ -81,7 +94,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const roleLabel = type === "admin" ? "Admin" : type === "operator" ? "Operator" : "User";
+    const roleLabel = type === "admin" ? "Admin" : type === "operator" ? "Operator" : type === "superadmin" ? "Super Admin" : "User";
 
     await transporter.sendMail({
       from: `"40 Building Alarm" <${process.env.EMAIL_USER}>`,

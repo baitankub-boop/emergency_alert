@@ -7,8 +7,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
-import { isAdminSessionValid, clearAdminSession } from "@/lib/adminSession";
-import { isOperatorSessionValid, clearOperatorSession } from "@/lib/operatorSession";
+import { ChevronDown, LogOut, Menu, X, UserCircle, UserCog, Settings } from "lucide-react";
 
 export default function Navbar() {
   const { language, setLanguage, t } = useLanguage();
@@ -17,9 +16,7 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [staffMenuOpen, setStaffMenuOpen] = useState(false);
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  const [isOperatorLoggedIn, setIsOperatorLoggedIn] = useState(false);
+  const [reportMenuOpen, setReportMenuOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -33,11 +30,6 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    setIsAdminLoggedIn(isAdminSessionValid());
-    setIsOperatorLoggedIn(isOperatorSessionValid());
-  }, [pathname]);
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUserMenuOpen(false);
@@ -45,105 +37,120 @@ export default function Navbar() {
     router.push("/");
   };
 
-  const handleAdminLogout = () => {
-    clearAdminSession();
-    setIsAdminLoggedIn(false);
-    setStaffMenuOpen(false);
-    setIsMenuOpen(false);
-    router.push("/login_admin");
-  };
-
-  const handleOperatorLogout = () => {
-    clearOperatorSession();
-    setIsOperatorLoggedIn(false);
-    setStaffMenuOpen(false);
-    setIsMenuOpen(false);
-    router.push("/operator_login");
-  };
+  const reportItems = [
+    { href: "/emergency", label: t("nav_emergency") },
+    { href: "/breakdown", label: t("nav_breakdown") },
+  ];
 
   const navItems = [
     { href: "/", label: t("nav_home") },
-    { href: "/emergency", label: t("nav_emergency") },
-    { href: "/breakdown", label: t("nav_breakdown") },
-    { href: "/login_admin", label: t("nav_admin") },
-    { href: "/operator_login", label: t("nav_operator") },
+    { href: "/status", label: t("nav_status") },
+    { href: "/news", label: t("nav_news") },
+    { href: "/contact", label: t("nav_contact") },
   ];
+
+  const AUTH_GATED_PATHS = ["/status", "/emergency", "/breakdown"];
+
+  const handleNavClick = (e: React.MouseEvent, href: string) => {
+    if (AUTH_GATED_PATHS.includes(href) && !user) {
+      e.preventDefault();
+      setIsMenuOpen(false);
+      setReportMenuOpen(false);
+      router.push("/user_login");
+    }
+  };
 
   const toggleLanguage = () => {
     setLanguage(language === "en" ? "th" : "en");
   };
 
-  const scrollToFooter = () => {
-    const footer = document.getElementById("footer");
-    if (footer) {
-      footer.scrollIntoView({ behavior: "smooth" });
-    }
-    setIsMenuOpen(false);
-  };
-
-  const isAdminOrOperatorPage = [
-    "/login_admin", "/admin_page", "/add_admin",
-    "/operator_login", "/operator_page", "/add_operator",
-  ].some(path => pathname.startsWith(path));
-
+  const nickname = (user?.user_metadata?.nickname as string | undefined)?.trim() || "";
   const shortEmail = user?.email
     ? user.email.length > 18
       ? user.email.slice(0, 15) + "..."
       : user.email
     : "";
+  const displayLabel = nickname
+    ? (nickname.length > 18 ? nickname.slice(0, 15) + "..." : nickname)
+    : shortEmail;
+  const avatarLetter = (nickname || user?.email || "?")[0]?.toUpperCase();
+
+  const isReportActive = reportItems.some(i => pathname === i.href);
 
   return (
-    <nav className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-xl border-b border-slate-700/50">
+    <nav className="bg-white dark:bg-slate-900 shadow-sm border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 transition-colors">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="relative">
-                <div className="absolute inset-0 bg-red-500/20 rounded-full blur-sm group-hover:bg-red-500/30 transition-all duration-300" />
-                <Image
-                  src="/KMUTNB_Logo.svg.png"
-                  alt="KMUTNB Logo"
-                  width={36}
-                  height={36}
-                  className="h-9 w-auto relative"
-                />
-              </div>
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <Image
+                src="/KMUTNB_Logo.png"
+                alt="KMUTNB Logo"
+                width={36}
+                height={36}
+                className="h-9 w-auto"
+              />
             </Link>
           </div>
 
           {/* Nav Links - Desktop */}
           <div className="hidden md:flex items-center justify-center flex-1">
             <div className="flex items-center gap-1">
-              {navItems.map((item) => {
+              <Link
+                href="/"
+                className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  pathname === "/" ? "text-red-600 bg-red-50 dark:bg-red-500/10" : "text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-red-50/60 dark:hover:bg-red-500/10"
+                }`}
+              >
+                {t("nav_home")}
+              </Link>
+
+              {/* Report dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setReportMenuOpen(v => !v)}
+                  className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isReportActive ? "text-red-600 bg-red-50 dark:bg-red-500/10" : "text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-red-50/60 dark:hover:bg-red-500/10"
+                  }`}
+                >
+                  {t("nav_report")}
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${reportMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+                {reportMenuOpen && (
+                  <div className="absolute left-0 mt-2 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden py-1">
+                    {reportItems.map(item => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={(e) => { handleNavClick(e, item.href); setReportMenuOpen(false); }}
+                        className={`block px-4 py-2.5 text-sm transition-colors ${
+                          pathname === item.href ? "text-red-600 bg-red-50 dark:bg-red-500/10 font-medium" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {navItems.slice(1).map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={(e) => handleNavClick(e, item.href)}
                     className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      isActive
-                        ? "text-white"
-                        : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+                      isActive ? "text-red-600 bg-red-50 dark:bg-red-500/10" : "text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-red-50/60 dark:hover:bg-red-500/10"
                     }`}
                   >
-                    {isActive && (
-                      <span className="absolute inset-0 bg-red-600/20 rounded-lg border border-red-500/30" />
-                    )}
-                    <span className="relative">{item.label}</span>
-                    {isActive && (
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-red-500 rounded-full" />
-                    )}
+                    {item.label}
                   </Link>
                 );
               })}
-              <button
-                onClick={scrollToFooter}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all duration-200"
-              >
-                {t("nav_contact")}
-              </button>
             </div>
           </div>
 
@@ -152,41 +159,53 @@ export default function Navbar() {
             {/* Language Toggle */}
             <button
               onClick={toggleLanguage}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium bg-slate-700/60 border border-slate-600/50 text-slate-300 hover:text-white hover:bg-slate-600/60 hover:border-slate-500/50 transition-all duration-200"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-all duration-200"
             >
-              <span className={language === "en" ? "text-white font-semibold" : "text-slate-500"}>EN</span>
-              <span className="text-slate-600">|</span>
-              <span className={language === "th" ? "text-white font-semibold" : "text-slate-500"}>TH</span>
+              <span className={language === "en" ? "text-slate-900 dark:text-white font-semibold" : "text-slate-400"}>EN</span>
+              <span className="text-slate-300 dark:text-slate-600">|</span>
+              <span className={language === "th" ? "text-slate-900 dark:text-white font-semibold" : "text-slate-400"}>TH</span>
             </button>
 
-            {/* User Auth — ซ่อนเมื่ออยู่ในหน้า Admin / Operator */}
-            {!isAdminOrOperatorPage && (user ? (
+            {/* User Auth */}
+            {user ? (
               <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-600/20 border border-red-500/30 text-red-300 hover:bg-red-600/30 transition-all duration-200 text-sm"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all duration-200 text-sm"
                 >
-                  <div className="w-5 h-5 rounded-full bg-red-500/40 flex items-center justify-center text-xs font-bold text-white">
-                    {user.email?.[0]?.toUpperCase()}
+                  <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center text-xs font-bold text-white">
+                    {avatarLetter}
                   </div>
-                  <span className="max-w-[120px] truncate">{shortEmail}</span>
-                  <svg className={`w-3 h-3 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <span className="max-w-[120px] truncate">{displayLabel}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
                 </button>
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-slate-700">
-                      <p className="text-xs text-slate-500">{t("user_logged_in_as")}</p>
-                      <p className="text-sm text-white font-medium truncate">{user.email}</p>
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+                      <p className="text-xs text-slate-400 dark:text-slate-500">{t("user_logged_in_as")}</p>
+                      <p className="text-sm text-slate-800 dark:text-slate-100 font-medium truncate">{displayLabel}</p>
                     </div>
+                    <Link
+                      href="/profile"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      <UserCog className="w-4 h-4" />
+                      {t("nav_profile")}
+                    </Link>
+                    <Link
+                      href="/account"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-t border-slate-100 dark:border-slate-700"
+                    >
+                      <Settings className="w-4 h-4" />
+                      {t("nav_account")}
+                    </Link>
                     <button
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-slate-700/50 transition-colors"
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors border-t border-slate-100 dark:border-slate-700"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
+                      <LogOut className="w-4 h-4" />
                       {t("user_logout")}
                     </button>
                   </div>
@@ -195,48 +214,11 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/user_login"
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium bg-red-600/20 border border-red-500/30 text-red-300 hover:bg-red-600/30 hover:text-red-200 transition-all duration-200"
+                className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 shadow-sm shadow-red-600/20 transition-all duration-200"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+                <UserCircle className="w-4 h-4" />
                 {t("nav_user_login")}
               </Link>
-            ))}
-
-            {/* Admin/Operator Auth — แสดงเมื่ออยู่ในหน้า Admin / Operator */}
-            {isAdminOrOperatorPage && (isAdminLoggedIn || isOperatorLoggedIn) && (
-              <div className="relative">
-                <button
-                  onClick={() => setStaffMenuOpen(v => !v)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-700/60 border border-slate-600/50 text-slate-300 hover:bg-slate-600/60 transition-all duration-200"
-                >
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white ${isAdminLoggedIn ? "bg-blue-500/40" : "bg-indigo-500/40"}`}>
-                    {isAdminLoggedIn ? "A" : "O"}
-                  </div>
-                  <span className="text-xs font-medium">{isAdminLoggedIn ? "Admin" : "Operator"}</span>
-                  <svg className={`w-3 h-3 transition-transform ${staffMenuOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {staffMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-slate-700">
-                      <p className="text-xs text-slate-500">{t("user_logged_in_as")}</p>
-                      <p className="text-sm text-white font-medium">{isAdminLoggedIn ? "Admin" : "Operator"}</p>
-                    </div>
-                    <button
-                      onClick={isAdminLoggedIn ? handleAdminLogout : handleOperatorLogout}
-                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-slate-700/50 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
-                      {t("btn_logout")}
-                    </button>
-                  </div>
-                )}
-              </div>
             )}
           </div>
 
@@ -244,110 +226,113 @@ export default function Navbar() {
           <div className="md:hidden flex items-center gap-2">
             <button
               onClick={toggleLanguage}
-              className="px-3 py-1 rounded-full text-xs font-medium bg-slate-700/60 border border-slate-600/50 text-slate-300 hover:text-white transition-all"
+              className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-800 transition-all"
             >
               {language === "en" ? "TH" : "EN"}
             </button>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-slate-300 hover:text-white focus:outline-none p-2 rounded-lg hover:bg-slate-700/50 transition-all"
+              className="text-slate-500 hover:text-slate-800 focus:outline-none p-2 rounded-lg hover:bg-slate-100 transition-all"
               aria-label="Toggle menu"
             >
-              <div className="w-5 h-4 flex flex-col justify-between">
-                <span className={`block h-0.5 bg-current rounded transition-all duration-300 ${isMenuOpen ? "rotate-45 translate-y-1.5" : ""}`} />
-                <span className={`block h-0.5 bg-current rounded transition-all duration-300 ${isMenuOpen ? "opacity-0 scale-x-0" : ""}`} />
-                <span className={`block h-0.5 bg-current rounded transition-all duration-300 ${isMenuOpen ? "-rotate-45 -translate-y-2.5" : ""}`} />
-              </div>
+              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
         {/* Mobile Menu */}
-        <div className={`md:hidden overflow-hidden transition-all duration-300 ${isMenuOpen ? "max-h-96 pb-4" : "max-h-0"}`}>
-          <div className="flex flex-col gap-1 pt-2 border-t border-slate-700/50">
-            {navItems.map((item) => {
+        <div className={`md:hidden overflow-hidden transition-all duration-300 ${isMenuOpen ? "max-h-[32rem] pb-4" : "max-h-0"}`}>
+          <div className="flex flex-col gap-1 pt-2 border-t border-slate-100">
+            <Link
+              href="/"
+              onClick={() => setIsMenuOpen(false)}
+              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                pathname === "/" ? "bg-red-50 text-red-600" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+              }`}
+            >
+              {t("nav_home")}
+            </Link>
+
+            <p className="px-4 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-300">{t("nav_report")}</p>
+            {reportItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={(e) => { handleNavClick(e, item.href); setIsMenuOpen(false); }}
+                className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  pathname === item.href ? "bg-red-50 text-red-600" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+
+            {navItems.slice(1).map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setIsMenuOpen(false)}
+                  onClick={(e) => { handleNavClick(e, item.href); if (!(item.href === "/status" && !user)) setIsMenuOpen(false); }}
                   className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive
-                      ? "bg-red-600/20 text-white border border-red-500/30"
-                      : "text-slate-400 hover:bg-slate-700/50 hover:text-white"
+                    isActive ? "bg-red-50 text-red-600" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
                   }`}
                 >
                   {item.label}
                 </Link>
               );
             })}
-            <button
-              onClick={scrollToFooter}
-              className="px-4 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-700/50 hover:text-white transition-all text-left"
-            >
-              {t("nav_contact")}
-            </button>
 
-            {/* User auth in mobile menu — ซ่อนเมื่ออยู่ในหน้า Admin / Operator */}
-            {!isAdminOrOperatorPage && (
-              <div className="mt-1 pt-2 border-t border-slate-700/50">
-                {user ? (
-                  <>
-                    <div className="px-4 py-2">
-                      <p className="text-xs text-slate-500">{t("user_logged_in_as")}</p>
-                      <p className="text-sm text-slate-300 truncate">{user.email}</p>
-                    </div>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-slate-700/50 transition-all text-left"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
-                      {t("user_logout")}
-                    </button>
-                  </>
-                ) : (
+            {/* User auth in mobile menu */}
+            <div className="mt-1 pt-2 border-t border-slate-100">
+              {user ? (
+                <>
+                  <div className="px-4 py-2">
+                    <p className="text-xs text-slate-400">{t("user_logged_in_as")}</p>
+                    <p className="text-sm text-slate-700 truncate">{displayLabel}</p>
+                  </div>
                   <Link
-                    href="/user_login"
+                    href="/profile"
                     onClick={() => setIsMenuOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-slate-700/50 hover:text-red-300 transition-all"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    {t("nav_user_login")}
+                    <UserCog className="w-4 h-4" />
+                    {t("nav_profile")}
                   </Link>
-                )}
-              </div>
-            )}
-
-            {/* Admin/Operator logout in mobile menu */}
-            {isAdminOrOperatorPage && (isAdminLoggedIn || isOperatorLoggedIn) && (
-              <div className="mt-1 pt-2 border-t border-slate-700/50">
-                <div className="px-4 py-2">
-                  <p className="text-xs text-slate-500">{t("user_logged_in_as")}</p>
-                  <p className="text-sm text-slate-300">{isAdminLoggedIn ? "Admin" : "Operator"}</p>
-                </div>
-                <button
-                  onClick={isAdminLoggedIn ? handleAdminLogout : handleOperatorLogout}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-slate-700/50 transition-all text-left"
+                  <Link
+                    href="/account"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all"
+                  >
+                    <Settings className="w-4 h-4" />
+                    {t("nav_account")}
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-all text-left"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    {t("user_logout")}
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/user_login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 mx-4 px-4 py-2.5 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-all"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  {t("btn_logout")}
-                </button>
-              </div>
-            )}
+                  <UserCircle className="w-4 h-4" />
+                  {t("nav_user_login")}
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Close dropdowns on outside click */}
       {userMenuOpen && <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />}
-      {staffMenuOpen && <div className="fixed inset-0 z-40" onClick={() => setStaffMenuOpen(false)} />}
+      {reportMenuOpen && <div className="fixed inset-0 z-40" onClick={() => setReportMenuOpen(false)} />}
     </nav>
   );
 }

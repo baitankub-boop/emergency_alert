@@ -492,9 +492,8 @@ emergency_alert/
 │   └── LanguageContext.tsx             # i18n: TH/EN · translations object · t(key)
 │
 ├── public/
-│   ├── KMUTNB_Logo.svg.png
-│   ├── emergency_cat.png
-│   └── breakdown_dog.png
+│   ├── KMUTNB_Logo.png
+│   └── 40building.png
 │
 ├── next.config.ts
 ├── .env.local                          # ⚠️ ไม่ commit ลง Git
