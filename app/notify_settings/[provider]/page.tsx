@@ -24,7 +24,7 @@ const PROVIDER_META: Record<Provider, {
     targetLabel: "Group ID",
     targetPlaceholder: "C4af4980629...",
     defaultTemplate: JSON.stringify(
-      [{ type: "text", text: "{{title}}\n\nหมายเลขเคส : {{case_id}}\nชั้นที่: {{floor}}\nรายละเอียด: {{description}}\nสถานะ: {{status}}\nหมายเหตุ: {{remark}}" }],
+      [{ type: "text", text: "{{title}}\n\nหมายเลขเคส : {{case_id}}\nประเภท: {{type}}\nชั้นที่: {{floor}}\nรายละเอียด: {{description}}\nสถานะ: {{status}}\nหมายเหตุ: {{remark}}" }],
       null,
       2
     ),
@@ -36,7 +36,7 @@ const PROVIDER_META: Record<Provider, {
     targetLabel: "Chat ID",
     targetPlaceholder: "-1001234567890",
     defaultTemplate: JSON.stringify(
-      { text: "{{title}}\n\nหมายเลขเคส : {{case_id}}\nชั้นที่: {{floor}}\nรายละเอียด: {{description}}\nสถานะ: {{status}}\nหมายเหตุ: {{remark}}", parse_mode: "HTML" },
+      { text: "{{title}}\n\nหมายเลขเคส : {{case_id}}\nประเภท: {{type}}\nชั้นที่: {{floor}}\nรายละเอียด: {{description}}\nสถานะ: {{status}}\nหมายเหตุ: {{remark}}", parse_mode: "HTML" },
       null,
       2
     ),
