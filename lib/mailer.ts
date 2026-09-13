@@ -96,6 +96,7 @@ export function statusUpdateHtml(
   description: string,
   oldStatus: string,
   newStatus: string,
+  remark?: string,
 ) {
   const isSuccess = newStatus === "Success";
   const kindTh = kind === "emergency" ? "เหตุฉุกเฉิน" : "เหตุขัดข้อง";
@@ -110,6 +111,7 @@ export function statusUpdateHtml(
       ${row("ผู้แจ้งเหตุ:", reporterEmail)}
       ${row("เหตุการณ์:", `${eventType} : ${description}`)}
       ${isSuccess ? "" : statusLine}
+      ${remark ? row("หมายเหตุจากเจ้าหน้าที่:", remark) : ""}
     </table>
     ${isSuccess ? statusLine : ""}
   `);

@@ -33,6 +33,7 @@ interface DispatchInput {
   email: string;
   status: string;
   createdAt: string;
+  remark?: string;
 }
 
 /** Sends the current incident's data (LINE/Telegram, Thai labels) to every enabled notify channel. */
@@ -45,6 +46,7 @@ export async function dispatchIncidentNotification(input: DispatchInput): Promis
       email: input.email,
       status: STATUS_TH[input.status] ?? input.status,
       timestamp: formatTimestamp(input.createdAt),
+      remark: input.remark ?? "",
     };
 
     const { data, error } = await supabase

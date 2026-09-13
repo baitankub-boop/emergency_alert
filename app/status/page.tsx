@@ -20,7 +20,7 @@ const BREAKDOWN_TYPE_KEYS: Record<string, string> = {
 };
 
 interface EmergencyRow {
-  id: number;
+  id: string;
   created_at: string;
   emergency_type: string;
   floor: string;
@@ -31,7 +31,7 @@ interface EmergencyRow {
 }
 
 interface BreakdownRow {
-  id: number;
+  id: string;
   created_at: string;
   breakdown_type: string;
   floor: string;
@@ -43,7 +43,7 @@ interface BreakdownRow {
 
 type EditState = {
   table: "emergency" | "breakdown";
-  id: number;
+  id: string;
   floor: string;
   description: string;
   event_type: string;
@@ -557,9 +557,9 @@ export default function StatusPage() {
                   {!loading && displayEmergency.length === 0 && (
                     <tr><td colSpan={emergencyCols} className="py-16 text-center text-sm text-slate-400">{t("no_events")}</td></tr>
                   )}
-                  {!loading && pagedEmergency.map((r, idx) => (
+                  {!loading && pagedEmergency.map((r) => (
                     <tr key={r.id} className="hover:bg-slate-50 transition-colors duration-150">
-                      <td className={`${tdCls} text-slate-400 font-medium w-10`}>{(pageEmergency - 1) * ROWS_PER_PAGE + idx + 1}</td>
+                      <td className={`${tdCls} text-slate-500 font-mono text-xs whitespace-nowrap`}>{r.id}</td>
                       <td className={`${tdCls} text-slate-500 font-mono text-xs whitespace-nowrap`}>{formatTimestamp(r.created_at)}</td>
                       <td className={tdCls}>
                         {r.emergency_type ? <span className="inline-block px-2 py-0.5 bg-red-50 text-red-700 rounded text-xs font-medium">{displayEmergencyType(r.emergency_type, t)}</span> : <span className="text-slate-300">—</span>}
@@ -621,9 +621,9 @@ export default function StatusPage() {
                   {!loading && displayBreakdown.length === 0 && (
                     <tr><td colSpan={breakdownCols} className="py-16 text-center text-sm text-slate-400">{t("no_events")}</td></tr>
                   )}
-                  {!loading && pagedBreakdown.map((r, idx) => (
+                  {!loading && pagedBreakdown.map((r) => (
                     <tr key={r.id} className="hover:bg-slate-50 transition-colors duration-150">
-                      <td className={`${tdCls} text-slate-400 font-medium w-10`}>{(pageBreakdown - 1) * ROWS_PER_PAGE + idx + 1}</td>
+                      <td className={`${tdCls} text-slate-500 font-mono text-xs whitespace-nowrap`}>{r.id}</td>
                       <td className={`${tdCls} text-slate-500 font-mono text-xs whitespace-nowrap`}>{formatTimestamp(r.created_at)}</td>
                       <td className={tdCls}>
                         <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">{r.breakdown_type}</span>

@@ -20,7 +20,7 @@ const STATUS_KEY: Record<string, string> = {
 };
 
 interface EmergencyRow {
-  id: number;
+  id: string;
   created_at: string;
   emergency_type: string;
   floor: string;
@@ -33,7 +33,7 @@ interface EmergencyRow {
 }
 
 interface BreakdownRow {
-  id: number;
+  id: string;
   created_at: string;
   breakdown_type: string;
   floor: string;
@@ -168,7 +168,7 @@ function StatusCompareChartCard({ data, range, setRange, statuses, setStatuses, 
 
 type EditState = {
   table: "emergency" | "breakdown";
-  id: number;
+  id: string;
   floor: string;
   description: string;
   event_type: string;
@@ -177,6 +177,7 @@ type EditState = {
   status: string;
   original_status: string;
   remark: string;
+  original_remark: string;
 } | null;
 
 const BREAKDOWN_TYPE_KEYS: Record<string, string> = {
@@ -211,7 +212,7 @@ export default function AdminPage() {
   const [emergencyRows, setEmergencyRows] = useState<EmergencyRow[]>([]);
   const [breakdownRows, setBreakdownRows] = useState<BreakdownRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState<number | null>(null);
+  const [updating, setUpdating] = useState<string | null>(null);
   const [photoModal, setPhotoModal] = useState<string | null>(null);
   const [editState, setEditState] = useState<EditState>(null);
   const [saving, setSaving] = useState(false);
@@ -257,16 +258,16 @@ export default function AdminPage() {
     loadAll();
   }, [fetchEmergency, fetchBreakdown]);
 
-  const notifyStatusChange = (table: string, id: number, old_status: string, new_status: string) => {
+  const notifyStatusChange = (table: string, id: string, old_status: string, new_status: string, remark?: string) => {
     fetch("/api/notify_status_change", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ table, id, old_status, new_status }),
+      body: JSON.stringify({ table, id, old_status, new_status, remark }),
     }).catch(e => console.error("notify error:", e));
   };
 
   // Admin quick-action: dispatch a waiting report (Waiting -> In Process)
-  const acceptEmergency = async (id: number) => {
+  const acceptEmergency = async (id: string) => {
     setUpdating(id);
     await supabase.from("emergency_data").update({ status: "In Process" }).eq("id", id);
     notifyStatusChange("emergency_data", id, "Waiting", "In Process");
@@ -274,7 +275,7 @@ export default function AdminPage() {
     setUpdating(null);
   };
 
-  const acceptBreakdown = async (id: number) => {
+  const acceptBreakdown = async (id: string) => {
     setUpdating(id);
     await supabase.from("breakdown_data").update({ status: "In Process" }).eq("id", id);
     notifyStatusChange("breakdown_data", id, "Waiting", "In Process");
@@ -283,7 +284,7 @@ export default function AdminPage() {
   };
 
   // Operator quick-action: resolve a report (-> Success / Failed)
-  const updateEmergencyStatus = async (id: number, status: string) => {
+  const updateEmergencyStatus = async (id: string, status: string) => {
     setUpdating(id);
     const row = emergencyRows.find(r => r.id === id);
     await supabase.from("emergency_data").update({ status }).eq("id", id);
@@ -292,7 +293,7 @@ export default function AdminPage() {
     setUpdating(null);
   };
 
-  const updateBreakdownStatus = async (id: number, status: string) => {
+  const updateBreakdownStatus = async (id: string, status: string) => {
     setUpdating(id);
     const row = breakdownRows.find(r => r.id === id);
     await supabase.from("breakdown_data").update({ status }).eq("id", id);
@@ -338,10 +339,10 @@ export default function AdminPage() {
       }).eq("id", editState.id);
       await fetchBreakdown();
     }
-    // Notify if status changed
-    if (editState.status !== editState.original_status) {
+    // Notify if the status and/or the staff remark changed
+    if (editState.status !== editState.original_status || editState.remark !== editState.original_remark) {
       const tbl = editState.table === "emergency" ? "emergency_data" : "breakdown_data";
-      notifyStatusChange(tbl, editState.id, editState.original_status, editState.status);
+      notifyStatusChange(tbl, editState.id, editState.original_status, editState.status, editState.remark);
     }
     setSaving(false);
     setEditState(null);
@@ -349,14 +350,14 @@ export default function AdminPage() {
 
   const exportExcel = () => {
     const wb = XLSX.utils.book_new();
-    const eData = emergencyRows.map((r, i) => ({
-      [rt("th_no")]: i + 1, [rt("th_timestamp")]: formatTimestamp(r.created_at),
+    const eData = emergencyRows.map((r) => ({
+      [rt("th_no")]: r.id, [rt("th_timestamp")]: formatTimestamp(r.created_at),
       [rt("th_floor")]: displayFloor(r.floor, rt), [rt("th_description")]: r.description,
       [rt("th_email")]: r.email, [rt("th_status")]: rt(STATUS_KEY[r.status] ?? r.status),
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eData), rt("btn_emergency").slice(0, 31));
-    const bData = breakdownRows.map((r, i) => ({
-      [rt("th_no")]: i + 1, [rt("th_timestamp")]: formatTimestamp(r.created_at), [rt("th_type")]: r.breakdown_type,
+    const bData = breakdownRows.map((r) => ({
+      [rt("th_no")]: r.id, [rt("th_timestamp")]: formatTimestamp(r.created_at), [rt("th_type")]: r.breakdown_type,
       [rt("th_floor")]: displayFloor(r.floor, rt), [rt("th_description")]: r.description,
       [rt("th_email")]: r.email, [rt("th_status")]: rt(STATUS_KEY[r.status] ?? r.status),
     }));
@@ -606,9 +607,9 @@ export default function AdminPage() {
   const breakdownCols = (isAdmin ? 11 : 9) + 1; // admin: no,timestamp,type,floor,description,email,photo,status,finished,action,edit,remark — operator: no,timestamp,floor,description,photo,status,finished,action,edit,remark
 
   function OperatorActionButtons({ id, currentStatus, onUpdate }: {
-    id: number;
+    id: string;
     currentStatus: string;
-    onUpdate: (id: number, status: string) => void;
+    onUpdate: (id: string, status: string) => void;
   }) {
     const isUpdating = updating === id;
     const isFinalized = currentStatus === "Success" || currentStatus === "Failed";
@@ -1119,9 +1120,9 @@ export default function AdminPage() {
                       <td colSpan={emergencyCols} className="py-16 text-center text-sm text-slate-400">{t("no_records")}</td>
                     </tr>
                   )}
-                  {!loading && pagedEmergency.map((r, idx) => (
+                  {!loading && pagedEmergency.map((r) => (
                     <tr key={r.id} className="hover:bg-slate-50 transition-colors duration-100">
-                      <td className={`${tdCls} text-slate-400 w-10`}>{(pageEmergency - 1) * ROWS_PER_PAGE + idx + 1}</td>
+                      <td className={`${tdCls} text-slate-500 font-mono text-xs whitespace-nowrap`}>{r.id}</td>
                       <td className={`${tdCls} font-mono text-xs text-slate-500 whitespace-nowrap`}>{formatTimestamp(r.created_at)}</td>
                       <td className={tdCls}>
                         {r.emergency_type ? <span className="inline-block px-2 py-0.5 bg-red-50 text-red-700 rounded text-xs font-medium">{displayEmergencyType(r.emergency_type, t)}</span> : <span className="text-slate-300">—</span>}
@@ -1177,7 +1178,7 @@ export default function AdminPage() {
                         <button
                           onClick={() => {
                             const isPredefinedE = EMERGENCY_CANONICAL_TYPES.includes(r.emergency_type || "");
-                            setEditState({ table: "emergency", id: r.id, floor: r.floor, description: r.description, event_type: isPredefinedE ? (r.emergency_type || "") : (r.emergency_type ? "other" : ""), other_type: isPredefinedE ? "" : (r.emergency_type || ""), email: r.email, status: r.status, original_status: r.status, remark: r.remark ?? "" });
+                            setEditState({ table: "emergency", id: r.id, floor: r.floor, description: r.description, event_type: isPredefinedE ? (r.emergency_type || "") : (r.emergency_type ? "other" : ""), other_type: isPredefinedE ? "" : (r.emergency_type || ""), email: r.email, status: r.status, original_status: r.status, remark: r.remark ?? "", original_remark: r.remark ?? "" });
                           }}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
                           title="แก้ไข"
@@ -1239,9 +1240,9 @@ export default function AdminPage() {
                       <td colSpan={breakdownCols} className="py-16 text-center text-sm text-slate-400">{t("no_records")}</td>
                     </tr>
                   )}
-                  {!loading && pagedBreakdown.map((r, idx) => (
+                  {!loading && pagedBreakdown.map((r) => (
                     <tr key={r.id} className="hover:bg-slate-50 transition-colors duration-100">
-                      <td className={`${tdCls} text-slate-400 w-10`}>{(pageBreakdown - 1) * ROWS_PER_PAGE + idx + 1}</td>
+                      <td className={`${tdCls} text-slate-500 font-mono text-xs whitespace-nowrap`}>{r.id}</td>
                       <td className={`${tdCls} font-mono text-xs text-slate-500 whitespace-nowrap`}>{formatTimestamp(r.created_at)}</td>
                       {isAdmin && (
                         <td className={tdCls}>
@@ -1300,7 +1301,7 @@ export default function AdminPage() {
                           onClick={() => {
                             const normalizedKey = BREAKDOWN_TYPE_KEYS[r.breakdown_type];
                             const normalized = normalizedKey ? t(normalizedKey) : null;
-                            setEditState({ table: "breakdown", id: r.id, floor: r.floor, description: r.description, event_type: normalized ?? (PREDEFINED_TYPES.includes(r.breakdown_type) ? r.breakdown_type : "other"), other_type: normalized ? "" : (PREDEFINED_TYPES.includes(r.breakdown_type) ? "" : r.breakdown_type), email: r.email, status: r.status, original_status: r.status, remark: r.remark ?? "" });
+                            setEditState({ table: "breakdown", id: r.id, floor: r.floor, description: r.description, event_type: normalized ?? (PREDEFINED_TYPES.includes(r.breakdown_type) ? r.breakdown_type : "other"), other_type: normalized ? "" : (PREDEFINED_TYPES.includes(r.breakdown_type) ? "" : r.breakdown_type), email: r.email, status: r.status, original_status: r.status, remark: r.remark ?? "", original_remark: r.remark ?? "" });
                           }}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
                           title="แก้ไข"

@@ -10,7 +10,7 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { table, id, old_status, new_status } = await req.json();
+    const { table, id, old_status, new_status, remark } = await req.json();
 
     if (!table || !id || !old_status || !new_status) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     const kindTh = kind === "emergency" ? "เหตุฉุกเฉิน" : "เหตุขัดข้อง";
     const subject = `อัปเดทสถานะ${kindTh}`;
-    const html = statusUpdateHtml(kind, reporterEmail, eventType, description, old_status, new_status);
+    const html = statusUpdateHtml(kind, reporterEmail, eventType, description, old_status, new_status, remark);
 
     await sendMail(recipients, subject, html);
 
@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
       email: reporterEmail,
       status: new_status,
       createdAt: new Date().toISOString(),
+      remark,
     });
 
     return NextResponse.json({ success: true });
