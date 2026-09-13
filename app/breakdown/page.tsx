@@ -1,16 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { useBanRecheck } from "@/lib/useBanRecheck";
 import type { User } from "@supabase/supabase-js";
 
-export default function BreakdownPage() {
+const TYPE_PARAM_KEY: Record<string, string> = {
+  electricity: "type_electricity",
+  plumbing: "type_plumbing",
+  elevator: "type_elevator",
+  equipment: "type_equipment",
+};
+
+function BreakdownContent() {
   const { t } = useLanguage();
   const router = useRouter();
+  const searchParams = useSearchParams();
   useBanRecheck();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [user, setUser] = useState<User | null>(null);
@@ -52,6 +60,15 @@ export default function BreakdownPage() {
 
     return () => subscription.unsubscribe();
   }, [router]);
+
+  useEffect(() => {
+    const typeParam = searchParams.get("type");
+    const translationKey = typeParam ? TYPE_PARAM_KEY[typeParam] : undefined;
+    if (translationKey) {
+      setFormData((prev) => ({ ...prev, event_type: t(translationKey) }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -353,5 +370,19 @@ export default function BreakdownPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BreakdownPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="w-8 h-8 border-slate-200 border-t-slate-500 rounded-full animate-spin-smooth" style={{ borderWidth: 3 }} />
+        </div>
+      }
+    >
+      <BreakdownContent />
+    </Suspense>
   );
 }

@@ -16,10 +16,10 @@ const FEATURES = [
 
 const CATEGORIES = [
   { icon: Flame, titleKey: "category_emergency_title", descKey: "category_emergency_desc", href: "/emergency", color: "bg-red-500", ring: "hover:border-red-200", text: "text-red-500" },
-  { icon: Zap, titleKey: "category_electrical_title", descKey: "category_electrical_desc", href: "/breakdown", color: "bg-amber-500", ring: "hover:border-amber-200", text: "text-amber-500" },
-  { icon: Droplet, titleKey: "category_plumbing_title", descKey: "category_plumbing_desc", href: "/breakdown", color: "bg-blue-500", ring: "hover:border-blue-200", text: "text-blue-500" },
-  { icon: ArrowUpDown, titleKey: "category_elevator_title", descKey: "category_elevator_desc", href: "/breakdown", color: "bg-emerald-500", ring: "hover:border-emerald-200", text: "text-emerald-500" },
-  { icon: Settings, titleKey: "category_equipment_title", descKey: "category_equipment_desc", href: "/breakdown", color: "bg-purple-500", ring: "hover:border-purple-200", text: "text-purple-500" },
+  { icon: Zap, titleKey: "category_electrical_title", descKey: "category_electrical_desc", href: "/breakdown?type=electricity", color: "bg-amber-500", ring: "hover:border-amber-200", text: "text-amber-500" },
+  { icon: Droplet, titleKey: "category_plumbing_title", descKey: "category_plumbing_desc", href: "/breakdown?type=plumbing", color: "bg-blue-500", ring: "hover:border-blue-200", text: "text-blue-500" },
+  { icon: ArrowUpDown, titleKey: "category_elevator_title", descKey: "category_elevator_desc", href: "/breakdown?type=elevator", color: "bg-emerald-500", ring: "hover:border-emerald-200", text: "text-emerald-500" },
+  { icon: Settings, titleKey: "category_equipment_title", descKey: "category_equipment_desc", href: "/breakdown?type=equipment", color: "bg-purple-500", ring: "hover:border-purple-200", text: "text-purple-500" },
 ];
 
 export default function Home() {
