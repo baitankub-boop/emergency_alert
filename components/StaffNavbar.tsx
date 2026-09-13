@@ -54,7 +54,7 @@ export default function StaffNavbar() {
           <div className="flex-shrink-0">
             <Link href="/admin40" className="flex items-center gap-2.5 group">
               <Image
-                src="/KMUTNB_Logo.png"
+                src="/kmutnb_font_logo.png"
                 alt="KMUTNB Logo"
                 width={36}
                 height={36}

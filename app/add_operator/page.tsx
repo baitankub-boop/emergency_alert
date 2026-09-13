@@ -62,7 +62,7 @@ export default function AddOperatorPage() {
             <div className="relative inline-block mb-3">
               <div className="absolute inset-0 bg-indigo-500/20 rounded-full blur-md" />
               <Image
-                src="/KMUTNB_Logo.png"
+                src="/kmutnb_font_logo.png"
                 alt="KMUTNB Logo"
                 width={48}
                 height={48}

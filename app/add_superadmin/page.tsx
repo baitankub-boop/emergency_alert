@@ -59,7 +59,7 @@ export default function AddSuperAdminPage() {
           <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-8 py-6 text-center">
             <div className="relative inline-block mb-3">
               <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-md" />
-              <Image src="/KMUTNB_Logo.png" alt="KMUTNB Logo" width={48} height={48} className="h-12 w-auto relative" />
+              <Image src="/kmutnb_font_logo.png" alt="KMUTNB Logo" width={48} height={48} className="h-12 w-auto relative" />
             </div>
             <h2 className="text-lg font-bold text-white">Add New Super Admin</h2>
             <p className="text-slate-400 text-xs mt-0.5">40 Building &middot; KMUTNB</p>

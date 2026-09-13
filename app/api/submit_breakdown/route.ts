@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { sendMail, getAllStaffEmails, breakdownSubmitHtml, formatTimestamp } from "@/lib/mailer";
+import { dispatchIncidentNotification } from "@/lib/notifyDispatch";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,6 +41,16 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       console.error("Email error:", e);
     }
+
+    await dispatchIncidentNotification({
+      kind: "breakdown",
+      type: event_type,
+      floor,
+      description,
+      email: reporter_email,
+      status: "Waiting",
+      createdAt: data?.created_at ?? new Date().toISOString(),
+    });
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {

@@ -24,7 +24,7 @@ const PROVIDER_META: Record<Provider, {
     targetLabel: "Group ID",
     targetPlaceholder: "C4af4980629...",
     defaultTemplate: JSON.stringify(
-      [{ type: "text", text: "🚨 New Report\nType: {{type}}\nFloor: {{floor}}\nDescription: {{description}}\nStatus: {{status}}" }],
+      [{ type: "text", text: "🚨 แจ้งเหตุใหม่\n\nประเภทเหตุ: {{type}}\nชั้นที่: {{floor}}\nรายละเอียด: {{description}}\nสถานะ: {{status}}" }],
       null,
       2
     ),
@@ -36,7 +36,7 @@ const PROVIDER_META: Record<Provider, {
     targetLabel: "Chat ID",
     targetPlaceholder: "-1001234567890",
     defaultTemplate: JSON.stringify(
-      { text: "🚨 New Report\nType: {{type}}\nFloor: {{floor}}\nDescription: {{description}}\nStatus: {{status}}", parse_mode: "HTML" },
+      { text: "🚨 แจ้งเหตุใหม่\n\nประเภทเหตุ: {{type}}\nชั้นที่: {{floor}}\nรายละเอียด: {{description}}\nสถานะ: {{status}}", parse_mode: "HTML" },
       null,
       2
     ),

@@ -492,7 +492,7 @@ emergency_alert/
 │   └── LanguageContext.tsx             # i18n: TH/EN · translations object · t(key)
 │
 ├── public/
-│   ├── KMUTNB_Logo.png
+│   ├── kmutnb_font_logo.png
 │   └── 40building.png
 │
 ├── next.config.ts

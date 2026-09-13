@@ -89,7 +89,7 @@ export default function Navbar() {
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center gap-2.5 group">
               <Image
-                src="/KMUTNB_Logo.png"
+                src="/kmutnb_font_logo.png"
                 alt="KMUTNB Logo"
                 width={36}
                 height={36}

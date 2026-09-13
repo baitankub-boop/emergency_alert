@@ -66,7 +66,7 @@ function StaffLoginContent() {
             <div className="relative inline-block mb-4">
               <div className="absolute inset-0 bg-red-500/20 rounded-full blur-md" />
               <Image
-                src="/KMUTNB_Logo.png"
+                src="/kmutnb_font_logo.png"
                 alt="KMUTNB Logo"
                 width={56}
                 height={56}

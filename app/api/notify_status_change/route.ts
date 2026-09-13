@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { sendMail, getAllStaffEmails, statusUpdateHtml } from "@/lib/mailer";
+import { dispatchIncidentNotification } from "@/lib/notifyDispatch";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -51,6 +52,16 @@ export async function POST(req: NextRequest) {
     const html = statusUpdateHtml(kind, reporterEmail, eventType, description, old_status, new_status);
 
     await sendMail(recipients, subject, html);
+
+    await dispatchIncidentNotification({
+      kind,
+      type: eventType,
+      floor: record.floor,
+      description,
+      email: reporterEmail,
+      status: new_status,
+      createdAt: new Date().toISOString(),
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

@@ -58,7 +58,7 @@ export default function UserRegisterPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-          <Image src="/KMUTNB_Logo.png" alt="KMUTNB" width={64} height={64} className="drop-shadow-sm" />
+          <Image src="/kmutnb_font_logo.png" alt="KMUTNB" width={64} height={64} className="drop-shadow-sm" />
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
