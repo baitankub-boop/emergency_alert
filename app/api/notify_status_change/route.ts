@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
 
     await dispatchIncidentNotification({
       kind,
+      caseId: id,
       type: eventType,
       floor: record.floor,
       description,

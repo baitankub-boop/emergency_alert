@@ -25,8 +25,14 @@ const BREAKDOWN_TYPE_TH: Record<string, string> = {
   "Equipment": "อุปกรณ์",
 };
 
+const TITLE: Record<"emergency" | "breakdown", string> = {
+  emergency: "🚨🆘 แจ้งเหตุฉุกเฉินใหม่",
+  breakdown: "🚨🔧 แจ้งเหตุขัดข้องใหม่",
+};
+
 interface DispatchInput {
   kind: "emergency" | "breakdown";
+  caseId: string;
   type: string;
   floor: string;
   description: string;
@@ -40,6 +46,8 @@ interface DispatchInput {
 export async function dispatchIncidentNotification(input: DispatchInput): Promise<void> {
   try {
     const placeholders: Record<string, string> = {
+      title: TITLE[input.kind],
+      case_id: input.caseId,
       type: input.kind === "breakdown" ? (BREAKDOWN_TYPE_TH[input.type] ?? input.type) : input.type,
       floor: displayFloor(input.floor),
       description: input.description,

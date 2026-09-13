@@ -1,12 +1,15 @@
 export type NotifyProvider = "line" | "telegram";
 
 const SAMPLE_PLACEHOLDERS: Record<string, string> = {
+  title: "🚨🆘 แจ้งเหตุฉุกเฉินใหม่",
+  case_id: "E0001",
   type: "อุบัติเหตุร้ายแรง",
   floor: "ชั้น 5",
   description: "นี่คือข้อความทดสอบตัวอย่าง",
   email: "reporter@example.com",
   status: "รอดำเนินการ",
   timestamp: new Date().toLocaleString("th-TH"),
+  remark: "",
 };
 
 /** JSON-safely substitutes {{key}} placeholders inside a raw JSON template string. */

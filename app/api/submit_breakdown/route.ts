@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       email: reporter_email,
       status: "Waiting",
       photo_url: photo_url || null,
-    }).select("created_at").single();
+    }).select("id, created_at").single();
 
     if (error) {
       console.error("Supabase error:", error);
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
 
     await dispatchIncidentNotification({
       kind: "breakdown",
+      caseId: data?.id ?? "",
       type: event_type,
       floor,
       description,
