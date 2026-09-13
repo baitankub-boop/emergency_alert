@@ -45,9 +45,12 @@ export default function Navbar() {
   const navItems = [
     { href: "/", label: t("nav_home") },
     { href: "/status", label: t("nav_status") },
-    { href: "/news", label: t("nav_news") },
-    { href: "/contact", label: t("nav_contact") },
+    { href: "/contact", label: t("nav_contact"), scrollToFooter: true },
   ];
+
+  const scrollToFooter = () => {
+    document.getElementById("footer")?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const AUTH_GATED_PATHS = ["/status", "/emergency", "/breakdown"];
 
@@ -137,6 +140,17 @@ export default function Navbar() {
               </div>
 
               {navItems.slice(1).map((item) => {
+                if (item.scrollToFooter) {
+                  return (
+                    <button
+                      key={item.href}
+                      onClick={scrollToFooter}
+                      className="relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-red-50/60 dark:hover:bg-red-500/10"
+                    >
+                      {item.label}
+                    </button>
+                  );
+                }
                 const isActive = pathname === item.href;
                 return (
                   <Link
@@ -268,6 +282,17 @@ export default function Navbar() {
             ))}
 
             {navItems.slice(1).map((item) => {
+              if (item.scrollToFooter) {
+                return (
+                  <button
+                    key={item.href}
+                    onClick={() => { scrollToFooter(); setIsMenuOpen(false); }}
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800 text-left"
+                  >
+                    {item.label}
+                  </button>
+                );
+              }
               const isActive = pathname === item.href;
               return (
                 <Link
