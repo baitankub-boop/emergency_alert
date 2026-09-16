@@ -38,17 +38,16 @@ export async function sendMail(to: string[], subject: string, html: string) {
 }
 
 export async function getAllStaffEmails(): Promise<string[]> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-  const [{ data: admins }, { data: operators }] = await Promise.all([
-    supabase.from("admin_data").select("email"),
-    supabase.from("operator_data").select("email"),
+  // admin_data/operator_data/superadmin_data have RLS enabled — must use the service role key, not anon.
+  const [{ data: admins }, { data: operators }, { data: superadmins }] = await Promise.all([
+    settingsClient.from("admin_data").select("email"),
+    settingsClient.from("operator_data").select("email"),
+    settingsClient.from("superadmin_data").select("email"),
   ]);
   return [
     ...(admins?.map((a: { email: string }) => a.email) ?? []),
     ...(operators?.map((o: { email: string }) => o.email) ?? []),
+    ...(superadmins?.map((s: { email: string }) => s.email) ?? []),
   ];
 }
 
