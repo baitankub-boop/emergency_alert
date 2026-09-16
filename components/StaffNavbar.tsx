@@ -31,7 +31,7 @@ export default function StaffNavbar() {
     setStaffRole(null);
     setStaffMenuOpen(false);
     setIsMenuOpen(false);
-    router.push("/admin40");
+    router.push("/");
   };
 
   const toggleLanguage = () => {
@@ -39,7 +39,7 @@ export default function StaffNavbar() {
   };
 
   const navItems = [
-    { href: "/admin40", label: t("nav_home") },
+    { href: "/", label: t("nav_home") },
     { href: "/admin_page", label: t("nav_status") },
     { href: "/manage_users", label: t("nav_manage_users") },
     { href: "/notify_settings", label: t("nav_notify_setting") },
@@ -52,7 +52,7 @@ export default function StaffNavbar() {
 
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link href="/admin40" className="flex items-center gap-2.5 group">
+            <Link href="/" className="flex items-center gap-2.5 group">
               <Image
                 src="/kmutnb_font_logo.png"
                 alt="KMUTNB Logo"

@@ -9,7 +9,7 @@ import Navbar from "./Navbar";
 import StaffNavbar from "./StaffNavbar";
 import Footer from "./Footer";
 
-const STAFF_PATHS = ["/admin40", "/admin_login", "/admin_page", "/add_admin", "/add_operator", "/add_superadmin", "/manage_users", "/staff_profile", "/staff_account", "/notify_settings"];
+const STAFF_PATHS = ["/admin_login", "/admin_page", "/add_admin", "/add_operator", "/add_superadmin", "/manage_users", "/staff_profile", "/staff_account", "/notify_settings"];
 // Routes shared with the public site — still show the staff header when a staff member is signed in
 const SHARED_STAFF_PATHS = ["/news"];
 
@@ -23,7 +23,8 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
 
   const isStaffPage =
     STAFF_PATHS.some((path) => pathname.startsWith(path)) ||
-    (SHARED_STAFF_PATHS.some((path) => pathname.startsWith(path)) && hasStaffSession);
+    (SHARED_STAFF_PATHS.some((path) => pathname.startsWith(path)) && hasStaffSession) ||
+    (pathname === "/" && hasStaffSession);
 
   return (
     <ThemeProvider>
