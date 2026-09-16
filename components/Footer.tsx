@@ -54,13 +54,11 @@ export default function Footer() {
           </div>
         </div>
       </div>
-      <div className="border-t border-slate-800">
-        <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-slate-500">© {new Date().getFullYear()} KMUTNB. {t("footer_rights")}</p>
-          <Link href="/admin_login" className="text-xs text-slate-500 hover:text-white transition-colors">
-            {t("footer_for_admin")}
-          </Link>
-        </div>
+      <div className="container mx-auto px-4 pb-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <p className="text-xs text-slate-500">© {new Date().getFullYear()} KMUTNB. {t("footer_rights")}</p>
+        <Link href="/admin_login" className="text-xs text-slate-500 hover:text-white transition-colors">
+          {t("footer_for_admin")}
+        </Link>
       </div>
     </footer>
   );
