@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import nodemailer from "nodemailer";
 import { requireStaff } from "@/lib/staffAuth";
 import { fillTemplate, sendLineMessage, sendTelegramMessage } from "@/lib/notifySend";
 
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { provider } = await req.json();
-    if (!["line", "telegram"].includes(provider)) {
+    if (!["line", "telegram", "email"].includes(provider)) {
       return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
     }
 
@@ -30,6 +31,25 @@ export async function POST(req: NextRequest) {
     }
     if (!data.token || !data.target_id) {
       return NextResponse.json({ error: "not_configured" }, { status: 400 });
+    }
+
+    if (provider === "email") {
+      try {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: { user: data.target_id, pass: data.token },
+        });
+        await transporter.sendMail({
+          from: `"40 Building Alarm" <${data.target_id}>`,
+          to: data.target_id,
+          subject: "ทดสอบการแจ้งเตือนทางอีเมล · Test Notification",
+          html: "<p>นี่คือข้อความทดสอบจากระบบแจ้งเตือน 40 Building · KMUTNB</p>",
+        });
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : "Send failed";
+        return NextResponse.json({ error: "send_failed", detail }, { status: 502 });
+      }
+      return NextResponse.json({ success: true });
     }
 
     let payload: unknown;

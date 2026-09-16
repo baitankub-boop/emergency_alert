@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useStaffSession } from "@/lib/useStaffSession";
-import { MessageCircle, Send, ChevronRight } from "lucide-react";
+import { MessageCircle, Send, Mail, ChevronRight } from "lucide-react";
 
 interface ProviderStatus {
   enabled: boolean;
@@ -19,6 +19,7 @@ export default function NotifySettingsPage() {
   const [loading, setLoading] = useState(true);
   const [line, setLine] = useState<ProviderStatus | null>(null);
   const [telegram, setTelegram] = useState<ProviderStatus | null>(null);
+  const [email, setEmail] = useState<ProviderStatus | null>(null);
 
   useEffect(() => {
     if (!role) return;
@@ -27,6 +28,7 @@ export default function NotifySettingsPage() {
       .then(json => {
         setLine(json.line ?? null);
         setTelegram(json.telegram ?? null);
+        setEmail(json.email ?? null);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -55,7 +57,20 @@ export default function NotifySettingsPage() {
       color: "sky",
       status: telegram,
     },
+    {
+      provider: "email",
+      label: "Email",
+      icon: Mail,
+      color: "amber",
+      status: email,
+    },
   ] as const;
+
+  const colorCls: Record<string, string> = {
+    emerald: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600",
+    sky: "bg-sky-50 dark:bg-sky-500/10 text-sky-600",
+    amber: "bg-amber-50 dark:bg-amber-500/10 text-amber-600",
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-10 px-4 transition-colors">
@@ -65,7 +80,7 @@ export default function NotifySettingsPage() {
           <p className="text-slate-400 text-sm mt-1">{t("notify_settings_subtitle")}</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {cards.map(({ provider, label, icon: Icon, color, status }) => (
             <Link
               key={provider}
@@ -73,9 +88,7 @@ export default function NotifySettingsPage() {
               className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md p-6 transition-all"
             >
               <div className="flex items-start justify-between mb-4">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${
-                  color === "emerald" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600" : "bg-sky-50 dark:bg-sky-500/10 text-sky-600"
-                }`}>
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${colorCls[color]}`}>
                   <Icon className="w-5 h-5" />
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors mt-1" />

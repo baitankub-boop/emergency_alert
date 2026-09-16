@@ -116,9 +116,9 @@ export default function EmergencyPage() {
       });
 
       if (response.ok) {
-        setMessage({ type: "success", text: t("submit_success") || "Submitted successfully!" });
         setFormData({ emergency_type: "", other_emergency_type: "", floor: "", description: "", reporter_email: user?.email ?? "" });
         removePhoto();
+        router.push("/status?submitted=emergency");
       } else {
         setMessage({ type: "error", text: t("submit_error") || "Submission failed. Please try again." });
       }
@@ -362,16 +362,9 @@ export default function EmergencyPage() {
                       <p className="text-xs font-semibold text-red-600 text-center uppercase tracking-wide mb-2">
                         {t("emergency_contact")}
                       </p>
-                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-sm text-slate-700">
-                        <span>
-                          <strong className="text-slate-800">Baitan:</strong>{" "}
-                          <a href="tel:0812583826" className="text-red-600 hover:underline">081-258-3826</a>
-                        </span>
-                        <span className="hidden sm:inline text-slate-300">|</span>
-                        <span>
-                          <strong className="text-slate-800">On:</strong>{" "}
-                          <a href="tel:0878526457" className="text-red-600 hover:underline">087-852-6457</a>
-                        </span>
+                      <div className="flex items-center justify-center gap-2 text-sm text-slate-700">
+                        <strong className="text-slate-800">{t("footer_building_label")}:</strong>{" "}
+                        <a href="tel:0255552000" className="text-red-600 hover:underline">02-555-2000</a>
                       </div>
                     </div>
                   </div>

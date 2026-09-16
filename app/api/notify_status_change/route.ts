@@ -51,7 +51,11 @@ export async function POST(req: NextRequest) {
     const subject = `อัปเดทสถานะ${kindTh}`;
     const html = statusUpdateHtml(kind, reporterEmail, eventType, description, old_status, new_status, remark);
 
-    await sendMail(recipients, subject, html);
+    try {
+      await sendMail(recipients, subject, html);
+    } catch (e) {
+      console.error("Email error:", e);
+    }
 
     await dispatchIncidentNotification({
       kind,

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { supabase } from "@/lib/supabase";
 import { useBanRecheck } from "@/lib/useBanRecheck";
@@ -120,12 +120,14 @@ function LoadingSpinner({ cols }: { cols: number }) {
 
 type ActiveTable = "emergency" | "breakdown";
 
-export default function StatusPage() {
+function StatusContent() {
   const { t } = useLanguage();
   const router = useRouter();
+  const searchParams = useSearchParams();
   useBanRecheck();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [activeTable, setActiveTable] = useState<ActiveTable>("emergency");
+  const [submittedBanner, setSubmittedBanner] = useState<ActiveTable | null>(null);
   const [emergencyRows, setEmergencyRows] = useState<EmergencyRow[]>([]);
   const [breakdownRows, setBreakdownRows] = useState<BreakdownRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -159,6 +161,16 @@ export default function StatusPage() {
     });
     return () => subscription.unsubscribe();
   }, [router]);
+
+  useEffect(() => {
+    const submitted = searchParams.get("submitted");
+    if (submitted === "emergency" || submitted === "breakdown") {
+      setSubmittedBanner(submitted);
+      setActiveTable(submitted);
+      router.replace("/status");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -463,6 +475,19 @@ export default function StatusPage() {
       </div>
 
       <div className="container mx-auto px-4 py-6 sm:py-8">
+        {/* Submitted successfully banner */}
+        {submittedBanner && (
+          <div className="mb-5 p-4 rounded-xl flex items-start justify-between gap-3 animate-fadeIn bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-medium">{t("submit_success")}</span>
+            </div>
+            <button onClick={() => setSubmittedBanner(null)} className="text-lg leading-none opacity-60 hover:opacity-100 shrink-0">&times;</button>
+          </div>
+        )}
+
         {/* Tab Selector + My Reports toggle */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6 sm:mb-8 animate-fadeInUp delay-200">
           <div className="flex gap-2 sm:gap-3">
@@ -663,5 +688,19 @@ export default function StatusPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StatusPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="w-8 h-8 border-slate-200 border-t-slate-500 rounded-full animate-spin-smooth" style={{ borderWidth: 3 }} />
+        </div>
+      }
+    >
+      <StatusContent />
+    </Suspense>
   );
 }

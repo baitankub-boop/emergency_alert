@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     }
 
     const result: Record<string, unknown> = {};
-    for (const provider of ["line", "telegram"]) {
+    for (const provider of ["line", "telegram", "email"]) {
       const row = data?.find(r => r.provider === provider);
       result[provider] = {
         enabled: row?.enabled ?? false,

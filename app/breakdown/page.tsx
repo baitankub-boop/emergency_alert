@@ -126,9 +126,9 @@ function BreakdownContent() {
       });
 
       if (response.ok) {
-        setMessage({ type: "success", text: t("submit_success") || "Submitted successfully!" });
         setFormData({ event_type: "", other_type: "", floor: "", description: "", reporter_email: user?.email ?? "" });
         removePhoto();
+        router.push("/status?submitted=breakdown");
       } else {
         setMessage({ type: "error", text: t("submit_error") || "Submission failed. Please try again." });
       }

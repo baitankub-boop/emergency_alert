@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     const { provider, enabled, token, target_id, message_template } = await req.json();
 
-    if (!["line", "telegram"].includes(provider)) {
+    if (!["line", "telegram", "email"].includes(provider)) {
       return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
     }
 

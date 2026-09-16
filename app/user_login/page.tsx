@@ -107,16 +107,9 @@ function UserLoginContent() {
                 {t("auth_account_disabled_desc")}
               </p>
               <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm text-slate-600 mb-6">
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
-                  <span>
-                    <strong className="text-slate-800">Baitan:</strong>{" "}
-                    <a href="tel:0812583826" className="text-red-600 hover:underline">081-258-3826</a>
-                  </span>
-                  <span className="hidden sm:inline text-slate-300">|</span>
-                  <span>
-                    <strong className="text-slate-800">On:</strong>{" "}
-                    <a href="tel:0878526457" className="text-red-600 hover:underline">087-852-6457</a>
-                  </span>
+                <div className="flex items-center justify-center gap-2">
+                  <strong className="text-slate-800">{t("footer_building_label")}:</strong>{" "}
+                  <a href="tel:0255552000" className="text-red-600 hover:underline">02-555-2000</a>
                 </div>
               </div>
               <button

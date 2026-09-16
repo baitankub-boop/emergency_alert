@@ -7,7 +7,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useStaffSession } from "@/lib/useStaffSession";
 import { ArrowLeft, Send, KeyRound } from "lucide-react";
 
-type Provider = "line" | "telegram";
+type Provider = "line" | "telegram" | "email";
 
 const PROVIDER_META: Record<Provider, {
   label: string;
@@ -16,6 +16,7 @@ const PROVIDER_META: Record<Provider, {
   targetLabel: string;
   targetPlaceholder: string;
   defaultTemplate: string;
+  hasTemplate: boolean;
 }> = {
   line: {
     label: "LINE",
@@ -28,6 +29,7 @@ const PROVIDER_META: Record<Provider, {
       null,
       2
     ),
+    hasTemplate: true,
   },
   telegram: {
     label: "Telegram",
@@ -40,6 +42,16 @@ const PROVIDER_META: Record<Provider, {
       null,
       2
     ),
+    hasTemplate: true,
+  },
+  email: {
+    label: "Email",
+    tokenLabel: "Gmail App Password",
+    tokenPlaceholder: "16-character app password from Google Account",
+    targetLabel: "Gmail Address",
+    targetPlaceholder: "yourname@gmail.com",
+    defaultTemplate: "",
+    hasTemplate: false,
   },
 };
 
@@ -48,7 +60,7 @@ export default function NotifyProviderSettingsPage() {
   const role = useStaffSession(["admin", "superadmin"]);
   const router = useRouter();
   const params = useParams<{ provider: string }>();
-  const provider = (params.provider === "line" || params.provider === "telegram" ? params.provider : null) as Provider | null;
+  const provider = (["line", "telegram", "email"].includes(params.provider) ? params.provider : null) as Provider | null;
 
   const [loading, setLoading] = useState(true);
   const [enabled, setEnabled] = useState(false);
@@ -98,11 +110,13 @@ export default function NotifyProviderSettingsPage() {
     e.preventDefault();
     setSaveMessage(null);
 
-    try {
-      JSON.parse(template);
-    } catch {
-      setSaveMessage({ type: "error", text: t("invalid_json_error") });
-      return;
+    if (meta.hasTemplate) {
+      try {
+        JSON.parse(template);
+      } catch {
+        setSaveMessage({ type: "error", text: t("invalid_json_error") });
+        return;
+      }
     }
 
     setSaving(true);
@@ -210,17 +224,19 @@ export default function NotifyProviderSettingsPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
-            <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-2">{t("notify_template_section")}</h2>
-            <p className="text-xs text-slate-400 mb-3">{t("notify_template_hint")}</p>
-            <textarea
-              rows={8}
-              className={`${inputCls} font-mono text-xs`}
-              value={template}
-              onChange={(e) => setTemplate(e.target.value)}
-              spellCheck={false}
-            />
-          </div>
+          {meta.hasTemplate && (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+              <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-2">{t("notify_template_section")}</h2>
+              <p className="text-xs text-slate-400 mb-3">{t("notify_template_hint")}</p>
+              <textarea
+                rows={8}
+                className={`${inputCls} font-mono text-xs`}
+                value={template}
+                onChange={(e) => setTemplate(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
+          )}
 
           {saveMessage && (
             <p className={`text-xs -mt-2 ${saveMessage.type === "success" ? "text-emerald-600" : "text-red-600"}`}>{saveMessage.text}</p>

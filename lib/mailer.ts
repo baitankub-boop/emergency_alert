@@ -1,16 +1,36 @@
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-});
+const settingsClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SECRET_KEY!
+);
+
+/** Reads the Gmail address + app password saved in Notify Settings. Returns null if not configured or disabled. */
+export async function getEmailSettings(): Promise<{ email: string; appPassword: string } | null> {
+  const { data } = await settingsClient
+    .from("notify_settings")
+    .select("enabled, token, target_id")
+    .eq("provider", "email")
+    .single();
+  if (!data || !data.enabled || !data.token || !data.target_id) return null;
+  return { email: data.target_id, appPassword: data.token };
+}
 
 export async function sendMail(to: string[], subject: string, html: string) {
   const unique = [...new Set(to.filter(Boolean))];
   if (unique.length === 0) return;
+
+  const settings = await getEmailSettings();
+  if (!settings) return; // email notifications not configured/enabled in Notify Settings
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: settings.email, pass: settings.appPassword },
+  });
+
   await transporter.sendMail({
-    from: `"40 Building Alarm" <${process.env.EMAIL_USER}>`,
+    from: `"40 Building Alarm" <${settings.email}>`,
     to: unique.join(","),
     subject,
     html,

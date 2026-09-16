@@ -38,8 +38,8 @@ export default function Footer() {
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
                 <span className="text-sm text-slate-300">
-                  <span className="font-medium text-white">40 Building Officer</span>{" "}
-                  <a href="tel:0812583826" className="text-slate-400 hover:text-white transition-colors">081-258-3826</a>
+                  <span className="font-medium text-white">{t("footer_building_label")}</span>{" "}
+                  <a href="tel:0255552000" className="text-slate-400 hover:text-white transition-colors">02-555-2000</a>
                 </span>
               </div>
             </div>
@@ -47,7 +47,7 @@ export default function Footer() {
               <a href="https://www.facebook.com/KMUTNBofficial/?locale=th_TH" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
                 <Facebook className="w-4 h-4" />
               </a>
-              <a href="tel:0812583826" aria-label="Call" className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+              <a href="tel:0255552000" aria-label="Call" className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
                 <Phone className="w-4 h-4" />
               </a>
             </div>
@@ -55,8 +55,11 @@ export default function Footer() {
         </div>
       </div>
       <div className="border-t border-slate-800">
-        <div className="container mx-auto px-4 py-4 text-center">
+        <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-slate-500">© {new Date().getFullYear()} KMUTNB. {t("footer_rights")}</p>
+          <Link href="/admin_login" className="text-xs text-slate-500 hover:text-white transition-colors">
+            {t("footer_for_admin")}
+          </Link>
         </div>
       </div>
     </footer>
