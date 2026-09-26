@@ -15,12 +15,12 @@ export default function EmergencyPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const EMERGENCY_TYPES = [
-    { value: "เป็นลม", key: "emergency_type_fainting" },
-    { value: "อุบัติเหตุร้ายแรง", key: "emergency_type_accident" },
+    { value: "อัคคีภัย", key: "emergency_type_fire" },
+    { value: "สารเคมีรั่วไหล", key: "emergency_type_chemical" },
+    { value: "ภัยคุกคามความปลอดภัย", key: "emergency_type_security" },
+    { value: "เหตุฉุกเฉินทางการแพทย์", key: "emergency_type_medical" },
+    { value: "อุบัติเหตุ", key: "emergency_type_accident" },
     { value: "ทะเลาะวิวาท", key: "emergency_type_fighting" },
-    { value: "พบโจร", key: "emergency_type_robbery" },
-    { value: "โดนล่วงละเมิด", key: "emergency_type_harassment" },
-    { value: "สัตว์มีพิษกัด", key: "emergency_type_animal" },
   ];
 
   const [formData, setFormData] = useState({

@@ -13,7 +13,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const EMERGENCY_CANONICAL_TYPES = ["เป็นลม", "อุบัติเหตุร้ายแรง", "ทะเลาะวิวาท", "พบโจร", "โดนล่วงละเมิด", "สัตว์มีพิษกัด"];
+const EMERGENCY_CANONICAL_TYPES = ["อัคคีภัย", "สารเคมีรั่วไหล", "ภัยคุกคามความปลอดภัย", "เหตุฉุกเฉินทางการแพทย์", "อุบัติเหตุ", "ทะเลาะวิวาท"];
 
 const STATUS_KEY: Record<string, string> = {
   Waiting: "status_waiting", "In Process": "status_in_process", Success: "status_success", Failed: "status_failed",
@@ -79,9 +79,9 @@ function displayFloor(floor: string, t: (k: string) => string) {
 
 function displayEmergencyType(type: string, t: (k: string) => string) {
   const map: Record<string, string> = {
-    "เป็นลม": t("emergency_type_fainting"), "อุบัติเหตุร้ายแรง": t("emergency_type_accident"),
-    "ทะเลาะวิวาท": t("emergency_type_fighting"), "พบโจร": t("emergency_type_robbery"),
-    "โดนล่วงละเมิด": t("emergency_type_harassment"), "สัตว์มีพิษกัด": t("emergency_type_animal"),
+    "อัคคีภัย": t("emergency_type_fire"), "สารเคมีรั่วไหล": t("emergency_type_chemical"),
+    "ภัยคุกคามความปลอดภัย": t("emergency_type_security"), "เหตุฉุกเฉินทางการแพทย์": t("emergency_type_medical"),
+    "อุบัติเหตุ": t("emergency_type_accident"), "ทะเลาะวิวาท": t("emergency_type_fighting"),
   };
   return map[type] || type;
 }
@@ -405,9 +405,9 @@ export default function AdminPage() {
 
     const floorLabel = (f: string) => /^\d+$/.test(f) ? `Floor ${f}` : f;
     const eTypeMap: Record<string, string> = {
-      "เป็นลม": "Fainting", "อุบัติเหตุร้ายแรง": "Accident",
-      "ทะเลาะวิวาท": "Fighting", "พบโจร": "Robbery",
-      "โดนล่วงละเมิด": "Harassment", "สัตว์มีพิษกัด": "Animal Bite",
+      "อัคคีภัย": "Fire", "สารเคมีรั่วไหล": "Chemical Leak",
+      "ภัยคุกคามความปลอดภัย": "Security Threat", "เหตุฉุกเฉินทางการแพทย์": "Medical Emergency",
+      "อุบัติเหตุ": "Accident", "ทะเลาะวิวาท": "Altercation",
     };
     const bTypeMap: Record<string, string> = {
       "ระบบไฟฟ้า": "Electrical", "ระบบประปา": "Plumbing",
@@ -680,7 +680,7 @@ export default function AdminPage() {
                     <select className={iCls} value={editState.event_type} onChange={e => setEditState({ ...editState, event_type: e.target.value })}>
                       <option value="">{t("emergency_select_type")}</option>
                       {EMERGENCY_CANONICAL_TYPES.map(v => {
-                        const keyMap: Record<string, string> = { "เป็นลม": "emergency_type_fainting", "อุบัติเหตุร้ายแรง": "emergency_type_accident", "ทะเลาะวิวาท": "emergency_type_fighting", "พบโจร": "emergency_type_robbery", "โดนล่วงละเมิด": "emergency_type_harassment", "สัตว์มีพิษกัด": "emergency_type_animal" };
+                        const keyMap: Record<string, string> = { "อัคคีภัย": "emergency_type_fire", "สารเคมีรั่วไหล": "emergency_type_chemical", "ภัยคุกคามความปลอดภัย": "emergency_type_security", "เหตุฉุกเฉินทางการแพทย์": "emergency_type_medical", "อุบัติเหตุ": "emergency_type_accident", "ทะเลาะวิวาท": "emergency_type_fighting" };
                         return <option key={v} value={v}>{t(keyMap[v])}</option>;
                       })}
                       <option value="other">{t("type_other")}</option>

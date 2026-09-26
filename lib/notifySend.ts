@@ -3,7 +3,7 @@ export type NotifyProvider = "line" | "telegram";
 const SAMPLE_PLACEHOLDERS: Record<string, string> = {
   title: "🚨🆘 แจ้งเหตุฉุกเฉินใหม่",
   case_id: "E0001",
-  type: "อุบัติเหตุร้ายแรง",
+  type: "อุบัติเหตุ",
   floor: "ชั้น 5",
   description: "นี่คือข้อความทดสอบตัวอย่าง",
   email: "reporter@example.com",
