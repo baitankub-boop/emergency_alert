@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { requireStaff } from "@/lib/staffAuth";
-import { fillTemplate, sendLineMessage, sendTelegramMessage } from "@/lib/notifySend";
+import { fillTemplate, sendLineMessage } from "@/lib/notifySend";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { provider } = await req.json();
-    if (!["line", "telegram", "email"].includes(provider)) {
+    if (!["line", "email"].includes(provider)) {
       return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
     }
 
@@ -59,9 +59,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "invalid_json" }, { status: 400 });
     }
 
-    const result = provider === "line"
-      ? await sendLineMessage(data.token, data.target_id, payload)
-      : await sendTelegramMessage(data.token, data.target_id, payload as Record<string, unknown>);
+    const result = await sendLineMessage(data.token, data.target_id, payload);
 
     if (!result.ok) {
       return NextResponse.json({ error: "send_failed", detail: result.error }, { status: 502 });

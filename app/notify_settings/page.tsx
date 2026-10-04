@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useStaffSession } from "@/lib/useStaffSession";
-import { MessageCircle, Send, Mail, ChevronRight } from "lucide-react";
+import { MessageCircle, Mail, ChevronRight } from "lucide-react";
 
 interface ProviderStatus {
   enabled: boolean;
@@ -18,7 +18,6 @@ export default function NotifySettingsPage() {
 
   const [loading, setLoading] = useState(true);
   const [line, setLine] = useState<ProviderStatus | null>(null);
-  const [telegram, setTelegram] = useState<ProviderStatus | null>(null);
   const [email, setEmail] = useState<ProviderStatus | null>(null);
 
   useEffect(() => {
@@ -27,7 +26,6 @@ export default function NotifySettingsPage() {
       .then(res => res.json())
       .then(json => {
         setLine(json.line ?? null);
-        setTelegram(json.telegram ?? null);
         setEmail(json.email ?? null);
         setLoading(false);
       })
@@ -51,13 +49,6 @@ export default function NotifySettingsPage() {
       status: line,
     },
     {
-      provider: "telegram",
-      label: "Telegram",
-      icon: Send,
-      color: "sky",
-      status: telegram,
-    },
-    {
       provider: "email",
       label: "Email",
       icon: Mail,
@@ -68,7 +59,6 @@ export default function NotifySettingsPage() {
 
   const colorCls: Record<string, string> = {
     emerald: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600",
-    sky: "bg-sky-50 dark:bg-sky-500/10 text-sky-600",
     amber: "bg-amber-50 dark:bg-amber-500/10 text-amber-600",
   };
 

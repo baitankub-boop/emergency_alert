@@ -7,7 +7,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useStaffSession } from "@/lib/useStaffSession";
 import { ArrowLeft, Send, KeyRound } from "lucide-react";
 
-type Provider = "line" | "telegram" | "email";
+type Provider = "line" | "email";
 
 const PROVIDER_META: Record<Provider, {
   label: string;
@@ -31,19 +31,6 @@ const PROVIDER_META: Record<Provider, {
     ),
     hasTemplate: true,
   },
-  telegram: {
-    label: "Telegram",
-    tokenLabel: "Bot Token",
-    tokenPlaceholder: "123456789:AAFhx...",
-    targetLabel: "Chat ID",
-    targetPlaceholder: "-1001234567890",
-    defaultTemplate: JSON.stringify(
-      { text: "{{title}}\n\nหมายเลขเคส : {{case_id}}\nประเภท: {{type}}\nชั้นที่: {{floor}}\nรายละเอียด: {{description}}\nสถานะ: {{status}}\nหมายเหตุ: {{remark}}", parse_mode: "HTML" },
-      null,
-      2
-    ),
-    hasTemplate: true,
-  },
   email: {
     label: "Email",
     tokenLabel: "Gmail App Password",
@@ -60,7 +47,7 @@ export default function NotifyProviderSettingsPage() {
   const role = useStaffSession(["admin", "superadmin"]);
   const router = useRouter();
   const params = useParams<{ provider: string }>();
-  const provider = (["line", "telegram", "email"].includes(params.provider) ? params.provider : null) as Provider | null;
+  const provider = (["line", "email"].includes(params.provider) ? params.provider : null) as Provider | null;
 
   const [loading, setLoading] = useState(true);
   const [enabled, setEnabled] = useState(false);

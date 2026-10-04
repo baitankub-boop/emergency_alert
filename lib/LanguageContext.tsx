@@ -354,7 +354,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Notify Settings
     notify_settings_title: "Notify Setting",
-    notify_settings_subtitle: "Configure LINE and Telegram alerts for new reports",
+    notify_settings_subtitle: "Configure LINE alerts for new reports",
     notify_status_enabled: "Enabled",
     notify_status_configured_disabled: "Configured (Off)",
     notify_status_not_configured: "Not Configured",
@@ -717,7 +717,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Notify Settings
     notify_settings_title: "ตั้งค่าแจ้งเตือน",
-    notify_settings_subtitle: "ตั้งค่าแจ้งเตือนเข้า LINE และ Telegram เมื่อมีการแจ้งเหตุใหม่",
+    notify_settings_subtitle: "ตั้งค่าแจ้งเตือนเข้า LINE เมื่อมีการแจ้งเหตุใหม่",
     notify_status_enabled: "เปิดใช้งาน",
     notify_status_configured_disabled: "ตั้งค่าแล้ว (ปิดอยู่)",
     notify_status_not_configured: "ยังไม่ได้ตั้งค่า",

@@ -1,5 +1,3 @@
-export type NotifyProvider = "line" | "telegram";
-
 const SAMPLE_PLACEHOLDERS: Record<string, string> = {
   title: "🚨🆘 แจ้งเหตุฉุกเฉินใหม่",
   case_id: "E0001",
@@ -36,27 +34,6 @@ export async function sendLineMessage(
     if (!res.ok) {
       const body = await res.text();
       return { ok: false, error: body || `HTTP ${res.status}` };
-    }
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Network error" };
-  }
-}
-
-export async function sendTelegramMessage(
-  token: string,
-  chatId: string,
-  extra: Record<string, unknown>
-): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, ...extra }),
-    });
-    const json = await res.json();
-    if (!json.ok) {
-      return { ok: false, error: json.description || `HTTP ${res.status}` };
     }
     return { ok: true };
   } catch (err) {

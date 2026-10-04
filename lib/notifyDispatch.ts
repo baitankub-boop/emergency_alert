@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { fillTemplate, sendLineMessage, sendTelegramMessage } from "./notifySend";
+import { fillTemplate, sendLineMessage } from "./notifySend";
 import { formatTimestamp, displayFloor } from "./mailer";
 
 const supabase = createClient(
@@ -42,7 +42,7 @@ interface DispatchInput {
   remark?: string;
 }
 
-/** Sends the current incident's data (LINE/Telegram, Thai labels) to every enabled notify channel. */
+/** Sends the current incident's data (LINE, Thai labels) to every enabled notify channel. */
 export async function dispatchIncidentNotification(input: DispatchInput): Promise<void> {
   try {
     const placeholders: Record<string, string> = {
@@ -69,8 +69,6 @@ export async function dispatchIncidentNotification(input: DispatchInput): Promis
         const payload = JSON.parse(fillTemplate(row.message_template, placeholders));
         if (row.provider === "line") {
           await sendLineMessage(row.token, row.target_id, payload);
-        } else if (row.provider === "telegram") {
-          await sendTelegramMessage(row.token, row.target_id, payload);
         }
       } catch (err) {
         console.error(`notify dispatch (${row.provider}) error:`, err);
